@@ -1,0 +1,69 @@
+# Build artifacts
+build/
+dist/
+*.spec
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+.venv/
+venv/
+
+# PDFs (source and output)
+seguradoras/
+orcamentos/
+output_test/
+output/
+
+# Temp files
+*.tmp
+temp_*
+
+# Agent/IDE config
+.agent/
+.gemini/
+.claude/
+.vscode/
+
+# Debug/test/dump scripts and output
+debug_*
+dump_*
+test_*
+verify_*
+reproduce_*
+analyze_*
+extract_*.py
+print_*.py
+check_*.py
+fix_*.py
+surgical_fix.py
+sanitize_logos.py
+convert_ico.py
+read_output.py
+apply_fixes.py
+*.txt
+*.json
+
+# Old generator versions
+generator_sierra.py
+generator_sierra_v[0-9].py
+generator_sierra_v[0-9][0-9].py
+
+# Legacy/backup files
+extractors_legacy.py
+extractors - Copia.py
+main_mockup.py
+
+# Stray PDFs in root
+*.pdf
+
+# Other
+*.jpg
+tools/
+rodar.bat
+utils.py
+*.md
+
