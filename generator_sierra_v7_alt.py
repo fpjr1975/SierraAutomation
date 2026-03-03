@@ -317,20 +317,24 @@ class SierraPDFGeneratorV7:
              franquia_casco = self.data.get('franquia')
 
         # Young Driver
-        # Young Driver
-        young_driver = self.data.get('condutor_jovem', 'Não')
-        
-        # Fallback: Check in Coberturas list if not explicitly set
-        if young_driver in ["N/D", "Não"]:
-             for name, val in self.data.get('coberturas', []):
-                  if "18" in name and "25" in name: # "Condutor 18-25"
-                       if val.lower().startswith("sim") or val.lower() == "contratado":
-                            young_driver = "Sim" # Normalize to Sim
-                            break
-                  if "Jovem" in name and "Condutor" in name:
-                       if val.lower().startswith("sim"):
-                            young_driver = "Sim"
-                            break
+        # Seguradoras que não trabalham com cobertura 18/25
+        insurer_code = self.data.get('insurer', '').upper()
+        no_young_driver_insurers = ['AZUL', 'ITAU', 'PORTO', 'POR']
+        if any(x in insurer_code for x in no_young_driver_insurers):
+            young_driver = "N/D"
+        else:
+            young_driver = self.data.get('condutor_jovem', 'Não')
+            # Fallback: Check in Coberturas list if not explicitly set
+            if young_driver in ["N/D", "Não"]:
+                 for name, val in self.data.get('coberturas', []):
+                      if "18" in name and "25" in name:
+                           if val.lower().startswith("sim") or val.lower() == "contratado":
+                                young_driver = "Sim"
+                                break
+                      if "Jovem" in name and "Condutor" in name:
+                           if val.lower().startswith("sim"):
+                                young_driver = "Sim"
+                                break
 
         # --- Force "Não contratado" for Third Party ---
         if self.is_third_party:

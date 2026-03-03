@@ -64,6 +64,5 @@ main_mockup.py
 *.jpg
 tools/
 rodar.bat
-utils.py
 *.md
 

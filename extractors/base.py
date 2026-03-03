@@ -56,8 +56,11 @@ class BaseExtractor:
             name = re.sub(rcf_pattern, '', name, flags=re.I).strip()
 
             # 3. APP Standardization
+            # "Acidentes Pessoais Passageiros" -> "APP - Morte"
+            if "ACIDENTES PESSOAIS" in name.upper() or "ACIDENTE PESSOAL" in name.upper():
+                 name = "APP - Morte"
             # "APP Morte" -> "APP - Morte"
-            if name.upper().startswith("APP") and " - " not in name:
+            elif name.upper().startswith("APP") and " - " not in name:
                  parts = name.split(None, 1)
                  if len(parts) > 1:
                       name = f"{parts[0]} - {parts[1]}"

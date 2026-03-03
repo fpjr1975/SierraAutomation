@@ -93,6 +93,13 @@ class BradescoExtractor(BaseExtractor):
                 if "APP" in ls and "Invalidez" in ls:
                     inv = re.search(r'Invalidez[\w\s\/]*:\s*([\d\.,]+)', ls)
                     if inv: coberturas.append(("APP Invalidez", f"R$ {inv.group(1)}"))
+                # APP em linhas separadas: "Morte p/ Passageiro: 5.000,00"
+                if "Morte" in ls and "Passageiro" in ls and not any(c[0] == "APP Morte" for c in coberturas):
+                    morte = re.search(r'Morte\s*p/\s*Passageiro:\s*([\d\.,]+)', ls)
+                    if morte: coberturas.append(("APP Morte", f"R$ {morte.group(1)}"))
+                if "Invalidez" in ls and "Passageiro" in ls and not any(c[0] == "APP Invalidez" for c in coberturas):
+                    inv = re.search(r'Invalidez\s*p/\s*Passageiro:\s*([\d\.,]+)', ls)
+                    if inv: coberturas.append(("APP Invalidez", f"R$ {inv.group(1)}"))
 
                 if "Fator de Ajuste:" in ls:
                      fator = re.search(r'Fator de Ajuste:\s*([\d\.,]+)', ls)
