@@ -58,7 +58,7 @@ class BaseExtractor:
             # 3. APP Standardization
             # "Acidentes Pessoais Passageiros" -> "APP" (cobre morte e invalidez)
             if "ACIDENTES PESSOAIS" in name.upper() or "ACIDENTE PESSOAL" in name.upper():
-                 name = "APP"
+                 name = "Acidentes Pessoais Passageiros"
             # "APP Morte" -> "APP - Morte"
             elif name.upper().startswith("APP") and " - " not in name:
                  parts = name.split(None, 1)
