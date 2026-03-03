@@ -53,16 +53,16 @@ class BradescoExtractor(BaseExtractor):
                      match_ast = re.search(r'\(\d+\)\s*(Assist.*?)(?:\(\d+\)|$)', ls)
                      if match_ast:
                           raw_val = match_ast.group(1).strip()
-                          # Extract the description parts: "Assist Auto Dia/Noite - Passeio 400 KM"
-                          # Keep Dia/Noite info and km
                           km_m = re.search(r'(\d+)\s*[Kk][Mm]', raw_val)
                           has_dia_noite = "Dia" in raw_val and "Noite" in raw_val
-                          if "Ilimitado" in raw_val:
+                          if "Ilimitado" in raw_val or "Prime" in raw_val:
                                final_val = "Guincho Ilimitado"
                           elif km_m and has_dia_noite:
                                final_val = f"Assist Dia/Noite {km_m.group(1)}Km"
                           elif km_m:
                                final_val = f"Guincho {km_m.group(1)} Km"
+                          elif has_dia_noite:
+                               final_val = "Assist Dia/Noite"
                           else:
                                final_val = raw_val
 
