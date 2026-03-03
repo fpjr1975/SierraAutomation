@@ -56,9 +56,9 @@ class BaseExtractor:
             name = re.sub(rcf_pattern, '', name, flags=re.I).strip()
 
             # 3. APP Standardization
-            # "Acidentes Pessoais Passageiros" -> "APP - Morte"
+            # "Acidentes Pessoais Passageiros" -> "APP" (cobre morte e invalidez)
             if "ACIDENTES PESSOAIS" in name.upper() or "ACIDENTE PESSOAL" in name.upper():
-                 name = "APP - Morte"
+                 name = "APP"
             # "APP Morte" -> "APP - Morte"
             elif name.upper().startswith("APP") and " - " not in name:
                  parts = name.split(None, 1)
