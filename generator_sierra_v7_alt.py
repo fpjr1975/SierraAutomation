@@ -638,7 +638,8 @@ class SierraPDFGeneratorV7:
         self.curr_y -= (h_c + (10 if self.is_third_party else 15))
 
     def draw_section_coberturas(self, c):
-        covs = self.data.get('coberturas', [])
+        # Filter out Franquia entries - they belong in the Franquias section
+        covs = [(n, v) for n, v in self.data.get('coberturas', []) if 'franquia' not in n.lower()]
         row_h = 16 if self.is_third_party else 20
         base_h = 45 if self.is_third_party else 80
         h_c = base_h + (len(covs) * row_h)
