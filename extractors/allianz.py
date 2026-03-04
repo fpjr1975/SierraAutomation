@@ -32,7 +32,7 @@ class AllianzExtractor(BaseExtractor):
         block_cols = []
         active_block = False
         target_block_found = False
-        first_block_done = False  # Prevent reactivation after first COMPLETO block
+        first_block_done = False
         parsed_coberturas = []
         last_line_text = ""
 
@@ -51,23 +51,22 @@ class AllianzExtractor(BaseExtractor):
                   continue
 
              if any(col in upper_line for col in ["BÁSICO", "AMPLIADO", "COMPLETO", "MASTER", "EXCLUSIVO"]) and \
-                len(line.split()) > 1 and "COBERTURAS" not in upper_line and not re.search(r"\d+,\d{2}", line):
+                "COBERTURAS" not in upper_line and "PARCELAS" not in upper_line and \
+                "BOLETO" not in upper_line and "DÉBITO" not in upper_line and "CARTÃO" not in upper_line and \
+                not re.search(r"\d+,\d{2}", line):
 
                   clean = re.sub(r'Roubo e Furto', '', line, flags=re.I).replace('*', ' ')
                   parts = clean.split()
                   candidates = [p for p in parts if p.upper() in ["BÁSICO", "AMPLIADO", "COMPLETO", "MASTER", "EXCLUSIVO"]]
 
                   if candidates:
-                      # If we find Completo, prioritize it
-                      if "COMPLETO" in [c.upper() for c in candidates]:
+                      c_ups = [c.upper() for c in candidates]
+                      # Accept Completo, Master or Exclusivo as valid target blocks
+                      if any(t in c_ups for t in ["COMPLETO", "MASTER", "EXCLUSIVO"]):
                            block_cols = candidates
                            active_block = True
                            target_block_found = True
-                           # If we had a previous fallback block active, we might want to clear,
-                           # but now we are just strictly looking for Completo.
                       else:
-                           # Strict: We only want Completo/Master block.
-                           # This avoids duplicates from Basic/Ampliado block appearing first.
                            active_block = False
 
                   continue
@@ -76,6 +75,10 @@ class AllianzExtractor(BaseExtractor):
              if "GUINCHO" in line.upper() and target_block_found:
                  active_block = True
              if active_block:
+                  if "CARTA VERDE" in upper_line:
+                       continue
+                  if "GASTOS COM DEFESA" in upper_line:
+                       continue
                   if "PREÇO TOTAL" in upper_line or "IOF" in upper_line:
                        active_block = False
                        # Mark first block as done to prevent payment tables from reactivating
@@ -96,6 +99,8 @@ class AllianzExtractor(BaseExtractor):
                        # If block has Completo, use it. Else use Ampliado (fallback)
                        c_ups = [c.upper() for c in block_cols]
                        if "COMPLETO" in c_ups: target_idx = c_ups.index("COMPLETO")
+                       elif "MASTER" in c_ups: target_idx = c_ups.index("MASTER")
+                       elif "EXCLUSIVO" in c_ups: target_idx = c_ups.index("EXCLUSIVO")
                        elif "AMPLIADO" in c_ups: target_idx = c_ups.index("AMPLIADO")
                        elif "BÁSICO" in c_ups: target_idx = c_ups.index("BÁSICO")
                        else: continue
@@ -117,9 +122,11 @@ class AllianzExtractor(BaseExtractor):
                        desc_end = matches[0].start()
                        desc = line[:desc_end].strip()
 
-                       # Context check for split lines (Vidros)
+                       # Context check for split lines
                        if not desc and "VIDROS" in last_line_text.upper():
                             desc = "Vidros"
+                       if not desc and ("CASCO" in last_line_text.upper() or "COMPREENSIVA" in last_line_text.upper()):
+                            desc = "Compreensiva"
 
                        if "CASCO" in desc.upper() or "COMPREENSIVA" in desc.upper():
                             parsed_coberturas.append(("Compreensiva", limit_val))
@@ -222,27 +229,37 @@ class AllianzExtractor(BaseExtractor):
         # --- Pagamento ---
         pag_opcoes = []
         premio_total = "N/D"
-        # 1x value extraction
+
+        # Determine payment column index based on block_cols
+        pay_col_idx = 0
+        if block_cols:
+            c_ups = [c.upper() for c in block_cols]
+            if "COMPLETO" in c_ups: pay_col_idx = c_ups.index("COMPLETO")
+            elif "MASTER" in c_ups: pay_col_idx = c_ups.index("MASTER")
+            elif "EXCLUSIVO" in c_ups: pay_col_idx = c_ups.index("EXCLUSIVO")
+            elif "AMPLIADO" in c_ups: pay_col_idx = c_ups.index("AMPLIADO")
+
+        # Try Preço Total line first
         for line in lines:
-             # Match "01 sem juros" followed by multiple money values
+            if "PREÇO TOTAL" in line.upper() or "PRE" in line.upper() and "TOTAL" in line.upper():
+                ms = re.findall(r'(\d{1,3}(?:\.\d{3})*,\d{2})', line)
+                if ms:
+                    val = ms[pay_col_idx] if pay_col_idx < len(ms) else ms[-1]
+                    self.data["premio_total"] = f"R$ {val}"
+                    premio_total = f"R$ {val}"
+                    break
+
+        # 1x value extraction from payment tables
+        for line in lines:
              if "01" in line and "sem juros" in line:
                   ms = re.findall(r'(\d{1,3}(?:\.\d{3})*,\d{2})', line)
-                  # Completo is index 3 in 6-value row (Roubo, Basico, Ampliado, Completo...)
-                  # If row has fewer values, fallback to last or first?
-                  # Dump showed 6 values.
-                  if len(ms) >= 4:
-                       val = ms[3]
-                       premio_total = f"R$ {val}"
+                  if ms:
+                       val = ms[pay_col_idx] if pay_col_idx < len(ms) else ms[-1]
+                       if premio_total == "N/D":
+                           premio_total = f"R$ {val}"
+                           self.data["premio_total"] = f"R$ {val}"
                        pag_opcoes.append({"tipo": "À Vista", "parcelas": "1x", "valor": f"R$ {val}"})
-                       # Also set self.data["premio_total"] here
-                       self.data["premio_total"] = f"R$ {val}"
                        break
-                  elif ms:
-                       # Fallback if columns confusing
-                       val = ms[-1] # Most expensive? or ms[0] cheapest?
-                       # Usually client wants Completo, which is middle-high.
-                       # If we failed column logic, stick to what we found or just N/D
-                       pass
 
         # 10x value extraction
         # 10x value extraction and general parcel search
@@ -264,8 +281,8 @@ class AllianzExtractor(BaseExtractor):
 
                        # Extract Values
                        ms = re.findall(r'(\d{1,3}(?:\.\d{3})*,\d{2})', line)
-                       if len(ms) >= 4:
-                            val = ms[3]
+                       if ms:
+                            val = ms[pay_col_idx] if pay_col_idx < len(ms) else ms[-1]
 
                             # Credit (Max)
                             if p_count > max_credit:
