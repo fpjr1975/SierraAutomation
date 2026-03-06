@@ -444,11 +444,12 @@ class SierraPDFGeneratorV7:
                 continue
             if val_p > 1:
                 is_debit = 'débito' in tipo or 'debito' in tipo or 'boleto' in tipo
+                is_bradesco_card = 'bradesco' in tipo
                 if is_debit:
                     if val_p > max_debit_p:
                         max_debit_p = val_p
                         best_debit = p
-                else:
+                elif not is_bradesco_card:
                     if val_p > max_credit_p:
                         max_credit_p = val_p
                         best_credit = p
@@ -513,6 +514,25 @@ class SierraPDFGeneratorV7:
         c.setFillColor(self.col_brand_bg)
         c.drawCentredString(self.width/2, next_y, credit_txt)
         next_y -= 15
+
+        # Bradesco: extra line in red for cartão Bradesco
+        if "BRADESCO" in ins_u:
+            bradesco_opt = None
+            for p in opts:
+                if "bradesco" in p.get('tipo', '').lower():
+                    bradesco_opt = p
+                    break
+            if bradesco_opt:
+                bradesco_txt = f"parcelado em {bradesco_opt.get('parcelas')} de {bradesco_opt.get('valor')} sem juros no cartão de crédito BRADESCO"
+            elif best_credit:
+                bradesco_txt = f"parcelado em {best_credit.get('parcelas')} de {best_credit.get('valor')} sem juros no cartão de crédito BRADESCO"
+            else:
+                bradesco_txt = None
+            if bradesco_txt:
+                c.setFont("Helvetica", 11)
+                c.setFillColor(colors.HexColor("#CC0000"))
+                c.drawCentredString(self.width/2, next_y, bradesco_txt)
+                next_y -= 15
 
         if debit_txt and "ZURICH" not in ins_u:
             c.setFont("Helvetica", 10)

@@ -162,9 +162,34 @@ class BradescoExtractor(BaseExtractor):
         max_credit = 0
         best_credit_v = None
 
+        max_bradesco = 0
+        best_bradesco_v = None
+
         max_debit = 0
         best_debit_v = None
 
+        vista_val = 0.0
+
+        def parse_brl(s):
+            try: return float(s.replace('.', '').replace(',', '.'))
+            except: return 0.0
+
+        # First pass: find vista value
+        for line in lines:
+            if "PAGAMENTO (R$)" in line:
+                started_table = True
+                continue
+            if started_table:
+                if "QUESTIONÁRIO" in line: break
+                vals = re.findall(r'(\d+[\d\.,]*,\d{2})', line)
+                if not vals: continue
+                parcel_match = re.match(r'(\d+)x', line.strip())
+                if parcel_match and int(parcel_match.group(1)) == 1 and len(vals) >= 2:
+                    vista_val = parse_brl(vals[0])
+                    break
+
+        # Second pass: extract payment options
+        started_table = False
         for line in lines:
             if "PAGAMENTO (R$)" in line:
                 started_table = True
@@ -180,22 +205,45 @@ class BradescoExtractor(BaseExtractor):
                     p_int = int(parcel_match.group(1))
 
                     if len(vals) >= 6:
+                        # Full row: Débito | Tot | Bradesco | Tot | Crédito | Tot | Carnê | Tot
                         val_credit = vals[4]
+                        tot_credit = parse_brl(vals[5])
+                        val_bradesco = vals[2]
+                        tot_bradesco = parse_brl(vals[3])
                         val_debit = vals[0]
 
                         if p_int == 1:
                              pag_opcoes.append({"tipo": "À Vista", "parcelas": "1x", "valor": f"R$ {val_debit}"})
 
-                        if p_int > max_credit:
-                             max_credit = p_int
-                             best_credit_v = val_credit
+                        # Credit: only count if sem juros (total ≈ vista, tolerance 1%)
+                        if vista_val > 0 and tot_credit <= vista_val * 1.01:
+                            if p_int > max_credit:
+                                 max_credit = p_int
+                                 best_credit_v = val_credit
 
+                        # Bradesco: only count if sem juros
+                        if vista_val > 0 and tot_bradesco <= vista_val * 1.01:
+                            if p_int > max_bradesco:
+                                 max_bradesco = p_int
+                                 best_bradesco_v = val_bradesco
+
+                        # Debit: limit 6x
                         if p_int <= 6 and p_int > max_debit:
                              max_debit = p_int
                              best_debit_v = val_debit
 
+                    elif len(vals) == 2 and p_int > max_bradesco:
+                        # Short row (11x, 12x): only Cartão Bradesco columns
+                        tot_short = parse_brl(vals[1])
+                        if vista_val > 0 and tot_short <= vista_val * 1.01:
+                            max_bradesco = p_int
+                            best_bradesco_v = vals[0]
+
         if max_credit > 1:
              pag_opcoes.append({"tipo": "Cartão de Crédito", "parcelas": f"{max_credit}x", "valor": f"R$ {best_credit_v}"})
+
+        if max_bradesco > 1 and (max_bradesco != max_credit or best_bradesco_v != best_credit_v):
+             pag_opcoes.append({"tipo": "Cartão Bradesco", "parcelas": f"{max_bradesco}x", "valor": f"R$ {best_bradesco_v}"})
 
         if max_debit > 1:
              pag_opcoes.append({"tipo": "Débito em Conta", "parcelas": f"{max_debit}x", "valor": f"R$ {best_debit_v}"})

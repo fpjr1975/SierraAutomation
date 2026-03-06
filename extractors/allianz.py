@@ -205,23 +205,37 @@ class AllianzExtractor(BaseExtractor):
                   self.data["coberturas"].append(("Franquia", f"Casco R$ {val}"))
                   franquias_lista.append(f"Casco: R$ {val}")
 
-        # Vidros: Section starts with "ASSISTÊNCIA AVIDROS" (possibly no space)
+        # Vidros: Section "ASSISTÊNCIA A VIDROS, LANTERNAS, FARÓIS E RETROVISORES"
         found_vidros = False
         for line in lines:
-             if "ASSISTÊNCIA" in line.upper() and "VIDROS" in line.upper():
+             upper_l = line.upper().strip()
+             if not upper_l:
+                  continue
+             # Detect section header: must contain ASSISTÊNCIA + VIDROS + (LANTERNAS or FARÓIS or RETROVISORES)
+             if "ASSISTÊNCIA" in upper_l and "VIDROS" in upper_l and \
+                any(k in upper_l for k in ["LANTERNAS", "FARÓIS", "FAROIS", "RETROVISORES"]):
                   found_vidros = True
                   continue
              if found_vidros:
-                  if "Consulte" in line or "Página" in line or "Serviços" in line:
-                       if len(line.strip()) > 30 : # Might be just a long legal line
-                            found_vidros = False
+                  # Stop at next major section header
+                  if "ASSISTÊNCIA 24H" in upper_l or "ASSISTÊNCIA 24" in upper_l:
+                       break
+                  # Skip non-data lines (headers, legal text, page markers)
+                  if upper_l.startswith("COBERTURA") and "FRANQUIA" in upper_l:
+                       continue
+                  if "PÁGINA" in upper_l or "PAGINA" in upper_l:
+                       continue
+                  if "SINISTROS DE" in upper_l:
+                       continue
+                  if "CONSULTE" in upper_l:
+                       continue
+                  if "CONDIÇÕES" in upper_l or "CONDICOES" in upper_l:
                        continue
                   # Parse pairs: "Parabrisa 385,00 Lanterna Convencional 200,00"
-                  # Regex matching name and value
-                  matches = re.findall(r'([A-Za-zÀ-ÿ\s/-]+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})', line)
+                  matches = re.findall(r'([A-Za-zÀ-ÿ\s/\-]+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})', line)
                   for n, v in matches:
                        cleaned_n = n.strip()
-                       if cleaned_n and len(cleaned_n) > 3:
+                       if cleaned_n and len(cleaned_n) > 2:
                             franquias_lista.append(f"{cleaned_n}: R$ {v}")
 
         self.data["franquias_lista"] = franquias_lista

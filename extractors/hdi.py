@@ -28,10 +28,8 @@ class HdiExtractor(BaseExtractor):
              if match_veic_simple: self.data["veiculo"] = match_veic_simple.group(1).strip()
 
         # Vigencia
-        # "Vigência:DAS 24 HS DO DIA 03/01/2026 ÀS 24 HS DO DIA 03/01/2027"
-        # Vigencia
-        # "Vigência:DAS 24 HS DO DIA 03/01/2026 ÀS 24 HS DO DIA 03/01/2027"
-        match_vig = re.search(r'(\d{2}/\d{2}/\d{4}).*?(\d{2}/\d{2}/\d{4})', text, re.S)
+        # "Vigência: DAS 24 HS DO DIA 13/03/2026 ÀS 24 HS DO DIA 13/03/2027 ( 365 DIAS)"
+        match_vig = re.search(r'Vig[eê]ncia:.*?(\d{2}/\d{2}/\d{4}).*?(\d{2}/\d{2}/\d{4})', text, re.S | re.I)
         if match_vig:
              self.data["vigencia"] = f"{match_vig.group(1)} a {match_vig.group(2)}"
 

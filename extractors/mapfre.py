@@ -109,18 +109,32 @@ class MapfreExtractor(BaseExtractor):
                            if "VALOR" not in label.upper() and len(label) > 3:
                                 franquias_lista.append(f"{label}: R$ {val}")
 
-        # Resolve Guincho
+        # Resolve Guincho: sum Assistência base km + Extensão de Reboque km
         guincho_val = "Guincho 200 Km (Padrão)"
+        base_km = 0
+        ext_km = 0
+
+        if assistencia_entry:
+             if "ILIMITADO" in assistencia_entry.upper():
+                  guincho_val = "Guincho Ilimitado"
+                  coberturas.append(("Assistência 24h", guincho_val))
+                  assistencia_entry = None  # skip sum logic
+             else:
+                  km_m = re.search(r'(\d+)\s*(?:KM|km|Km)', assistencia_entry)
+                  if km_m: base_km = int(km_m.group(1))
+
         if ext_reboque_entry:
              if "ILIMITADO" in ext_reboque_entry.upper():
                   guincho_val = "Guincho Ilimitado"
              else:
-                  km_m = re.search(r'(\d+)\s*KM', ext_reboque_entry, re.I)
-                  if km_m: guincho_val = f"Guincho {km_m.group(1)} Km"
-        elif assistencia_entry:
-             km_m = re.search(r'(\d+)\s*KM', assistencia_entry, re.I)
-             if km_m: guincho_val = f"Guincho {km_m.group(1)} Km"
-             elif "ILIMITADO" in assistencia_entry.upper(): guincho_val = "Guincho Ilimitado"
+                  km_m = re.search(r'(\d+)\s*(?:KM|km|Km)', ext_reboque_entry)
+                  if km_m: ext_km = int(km_m.group(1))
+
+        # Sum if we have numeric values
+        if assistencia_entry is not None:  # not already set to Ilimitado
+             total_km = base_km + ext_km
+             if total_km > 0:
+                  guincho_val = f"Guincho {total_km} Km"
 
         coberturas.append(("Assistência 24h", guincho_val))
 
