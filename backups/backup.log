@@ -1,0 +1,21 @@
+[2026-03-09 23:54:51] === Iniciando backup Sierra DB ===
+[2026-03-09 23:54:51] Gerando backup diário: /root/sierra/backups/daily_20260309_235451.sql.gz
+[2026-03-09 23:55:35] === Iniciando backup Sierra DB ===
+[2026-03-09 23:55:35] Gerando backup diário: /root/sierra/backups/daily_20260309_235535.sql.gz
+[2026-03-09 23:55:35] Backup gerado com sucesso: 620K
+[2026-03-09 23:55:35] Limpando backups diários antigos (manter últimos 7)...
+[2026-03-09 23:55:35] Limpando backups semanais antigos (manter últimos 4)...
+[2026-03-09 23:55:38] === Iniciando backup Sierra DB ===
+[2026-03-09 23:55:38] Gerando backup diário: /root/sierra/backups/daily_20260309_235538.sql.gz
+[2026-03-09 23:55:38] Backup gerado com sucesso: 620K
+[2026-03-09 23:55:38] Limpando backups diários antigos (manter últimos 7)...
+[2026-03-09 23:55:38] Limpando backups semanais antigos (manter últimos 4)...
+[2026-03-09 23:56:02] === Iniciando backup Sierra DB ===
+[2026-03-09 23:56:02] Gerando backup diário: /root/sierra/backups/daily_20260309_235602.sql.gz
+[2026-03-09 23:56:03] Backup gerado com sucesso: 620K
+[2026-03-09 23:56:03] Verificando rotação de backups diários (manter últimos 7)...
+[2026-03-09 23:56:03] Total diários: 4 (sem remoção necessária)
+[2026-03-09 23:56:03] Verificando rotação de backups semanais (manter últimos 4)...
+[2026-03-09 23:56:03] Total semanais: 0 (sem remoção necessária)
+[2026-03-09 23:56:03] Resumo: 4 backup(s) diário(s), 0 semanal(is)
+[2026-03-09 23:56:03] === Backup concluído com sucesso ===

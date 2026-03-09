@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sierra — Conversor PDF</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#f8f9fb;--card:#fff;--border:#eaecf0;--text:#101828;--text-2:#344054;--text-3:#667085;--text-4:#98a2b3;--blue-700:#1a5276;--blue-600:#2471a3;--blue-500:#2980b9;--blue-100:#dbeafe;--blue-50:#eff6ff;--green-600:#059669;--green-100:#d1fae5;--green-50:#ecfdf5;--gold-600:#d97706;--gold-100:#fef3c7;--red-500:#ef4444;--red-100:#fee2e2;--radius-lg:14px;--shadow-sm:0 1px 2px rgba(0,0,0,.05);--shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04)}
+        body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;min-height:100vh}
+        .layout{display:flex;min-height:100vh}
+        .sidebar{width:240px;background:#fff;border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50}
+        .sidebar-brand{padding:16px 20px 18px;border-bottom:1px solid var(--border);margin-bottom:8px;text-align:center}
+        .sidebar-brand img{height:38px;display:block;margin:0 auto 6px}
+        .sidebar-brand span{font-size:10px;color:var(--text-4);font-weight:600;letter-spacing:.8px;text-transform:uppercase;display:block}
+        .sidebar-nav{flex:1;padding:4px 8px}
+        .sidebar-nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-3);text-decoration:none;font-size:13px;font-weight:500;transition:all .15s;margin-bottom:2px}
+        .sidebar-nav a:hover{background:var(--blue-50);color:var(--blue-700)}
+        .sidebar-nav a.active{background:var(--blue-50);color:var(--blue-700);font-weight:600}
+        .sidebar-nav a .icon{width:18px;text-align:center;font-size:15px}
+        .sidebar-nav .section{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;padding:16px 12px 6px}
+        .sidebar-footer{padding:12px 20px;border-top:1px solid var(--border)}
+        .sidebar-user{font-size:12px;color:var(--text-3)}.sidebar-user strong{color:var(--text);font-weight:600}
+        .btn-logout{background:none;border:none;color:var(--text-4);font-size:11px;cursor:pointer;padding:4px 0;font-family:inherit}
+        .main{margin-left:240px;flex:1;min-width:0}
+        @media(max-width:768px){.sidebar{transform:translateX(-100%)}.main{margin-left:0}}
+        .header{padding:24px 32px 0}
+        .header h2{font-size:22px;font-weight:700;letter-spacing:-.5px}
+        .header p{font-size:13px;color:var(--text-3);margin-top:2px}
+        .content{padding:20px 32px 40px;max-width:700px}
+
+        .drop-zone{
+            background:var(--card);border:2px dashed var(--border);border-radius:var(--radius-lg);
+            padding:48px 40px;text-align:center;cursor:pointer;transition:all .2s;
+            box-shadow:var(--shadow-sm);
+        }
+        .drop-zone:hover,.drop-zone.over{border-color:var(--blue-500);background:var(--blue-50)}
+        .drop-zone.processing{pointer-events:none;opacity:.7}
+        .drop-zone .dz-icon{font-size:40px;margin-bottom:10px}
+        .drop-zone h3{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px}
+        .drop-zone p{font-size:12px;color:var(--text-4)}
+        .drop-zone .supported{margin-top:12px;font-size:11px;color:var(--text-4);line-height:1.6}
+
+        .status{margin-top:16px;display:none}
+        .status.show{display:block}
+        .status-bar{
+            background:var(--card);border:1px solid var(--border);border-radius:10px;
+            padding:16px 20px;box-shadow:var(--shadow-sm);
+            display:flex;align-items:center;gap:12px;
+        }
+        .spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--blue-500);border-radius:50%;animation:spin .8s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .status-text{font-size:13px;color:var(--text-2)}
+
+        .result{margin-top:16px;display:none}
+        .result.show{display:block}
+        .result-card{
+            background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);
+            overflow:hidden;box-shadow:var(--shadow);
+        }
+        .result-head{
+            padding:16px 20px;background:var(--green-50);border-bottom:1px solid var(--green-100);
+            display:flex;align-items:center;gap:10px;
+        }
+        .result-head .check{font-size:20px}
+        .result-head h3{font-size:14px;font-weight:600;color:var(--green-600)}
+        .result-head span{font-size:12px;color:var(--text-3);margin-left:auto}
+        .result-body{padding:16px 20px}
+        .result-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:16px}
+        .result-field{font-size:12px}
+        .result-field .label{color:var(--text-4);font-weight:500;text-transform:uppercase;letter-spacing:.3px;font-size:10px}
+        .result-field .value{color:var(--text);font-weight:500;margin-top:1px}
+        .btn-dl{
+            display:inline-flex;align-items:center;gap:6px;
+            background:var(--blue-700);color:#fff;border:none;
+            padding:10px 20px;border-radius:8px;font-size:13px;
+            font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s;
+            text-decoration:none;
+        }
+        .btn-dl:hover{background:var(--blue-600)}
+        .btn-again{
+            background:none;border:1px solid var(--border);color:var(--text-3);
+            padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;
+            font-family:inherit;cursor:pointer;margin-left:8px;
+        }
+        .btn-again:hover{border-color:var(--blue-500);color:var(--blue-600)}
+
+        .error{margin-top:16px;display:none;background:var(--red-100);border:1px solid #fca5a5;border-radius:10px;padding:14px 18px;font-size:13px;color:var(--red-500)}
+        .error.show{display:block}
+
+        .history{margin-top:24px}
+        .history h3{font-size:13px;font-weight:600;color:var(--text-3);margin-bottom:8px}
+        .history-item{
+            display:flex;align-items:center;justify-content:space-between;
+            padding:10px 14px;background:var(--card);border:1px solid var(--border);
+            border-radius:8px;margin-bottom:6px;font-size:12px;
+        }
+        .history-item a{color:var(--blue-600);text-decoration:none;font-weight:500}
+    </style>
+    <style>
+        .mobile-nav{display:none;position:fixed;top:0;left:0;right:0;height:52px;background:#154360;z-index:200;align-items:center;padding:0 16px;gap:12px}
+        .mobile-nav h2{color:#fff;font-size:14px;font-weight:700;flex:1}
+        .mobile-nav .ham{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:8px}
+        .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150}
+        @media(max-width:768px){
+            .mobile-nav{display:flex!important}
+            .main,.content,[class*="main"]{padding-top:60px!important}
+            .sidebar{transform:translateX(-100%);transition:transform .2s}
+            .sidebar.open{transform:translateX(0)!important;display:flex!important;z-index:160}
+            .sidebar-overlay.show{display:block}
+        }
+    </style>
+
+    <style>
+        @media(max-width:768px){
+            .main,.content{margin-left:0!important;padding:60px 12px 12px!important}
+            .header,.page-header{flex-direction:column;gap:8px;align-items:flex-start!important}
+            .header h1,.page-header h1{font-size:18px}
+            .kpi-strip,.stats-grid,.kpi-row{grid-template-columns:repeat(2,1fr)!important;gap:8px}
+            .card,.glass{overflow-x:auto;-webkit-overflow-scrolling:touch}
+            table{min-width:600px}
+            .g2,.g3,.g23,.grid-2,.grid-3{grid-template-columns:1fr!important}
+            .search-bar{flex-direction:column}
+            .search-bar input{max-width:100%!important}
+            .filter-bar{flex-wrap:wrap}
+        }
+    </style>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <div class="mobile-nav">
+        <button class="ham" onclick="toggleMenu()">☰</button>
+        <h2>Sierra Seguros</h2>
+    </div>
+    <div class="sidebar-overlay" onclick="closeMenu()"></div>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand"><img src="/static/logo-sierra-full.png" alt="Sierra — Soluções em Seguros"><span>Vértice</span></div>
+            <nav class="sidebar-nav">
+                <div class="section">Principal</div>
+                <a href="/analytics"><span class="icon">📊</span> Painel Gerencial</a>
+                <a href="/cotacoes"><span class="icon">🧮</span> Nova Cotação</a>
+                <a href="/clientes"><span class="icon">👥</span> Clientes</a>
+                <a href="/dashboard"><span class="icon">📋</span> Operacional</a>
+                <a href="/renovacoes"><span class="icon">🔄</span> Renovações</a>
+                <div class="section">Ferramentas</div>
+                <a href="/conversor" class="active"><span class="icon">📄</span> Conversor PDF</a>
+                        <div class="section" id="adminSection" style="display:none">Administração</div>
+            <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+        </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-user"><strong id="sideUser"></strong><br>Sierra Seguros</div>
+                <button class="btn-logout" onclick="logout()">Sair →</button>
+            </div>
+        </aside>
+        <div class="main">
+            <div class="header">
+                <h2>Conversor de PDF</h2>
+                <p>Converta orçamentos de qualquer seguradora para o layout Sierra</p>
+            </div>
+            <div class="content">
+                <div class="drop-zone" id="dropZone">
+                    <div class="dz-icon">📄</div>
+                    <h3>Arraste o PDF aqui ou clique para selecionar</h3>
+                    <p>Aceita PDFs de orçamento de qualquer seguradora (máx 10MB)</p>
+                    <div class="supported">
+                        Seguradoras reconhecidas: Alfa, Aliro, Allianz, Azul, Bradesco, Darwin, Ezze, HDI, Itaú, Mapfre, Mitsui, Porto, Suhai, Suíça, Tokio, Yelum, Zurich<br>
+                        Outras seguradoras → extração automática via IA 🤖
+                    </div>
+                    <input type="file" id="fileInput" accept=".pdf" style="display:none">
+                </div>
+
+                <div class="status" id="status">
+                    <div class="status-bar">
+                        <div class="spinner"></div>
+                        <span class="status-text" id="statusText">Processando...</span>
+                    </div>
+                </div>
+
+                <div class="error" id="error"></div>
+
+                <div class="result" id="result">
+                    <div class="result-card">
+                        <div class="result-head">
+                            <span class="check">✅</span>
+                            <h3>PDF convertido com sucesso</h3>
+                            <span id="resultSeg"></span>
+                        </div>
+                        <div class="result-body">
+                            <div class="result-grid" id="resultGrid"></div>
+                            <a class="btn-dl" id="btnDownload" href="#" target="_blank">⬇ Baixar PDF Sierra</a>
+                            <button class="btn-again" onclick="reset()">Converter outro</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="history" id="history" style="display:none">
+                    <h3>Conversões recentes</h3>
+                    <div id="historyList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+const token=localStorage.getItem('sierra_token');
+if(!token)window.location.href='/';
+const user=JSON.parse(localStorage.getItem('sierra_user')||'{}');
+document.getElementById('sideUser').textContent=user.nome||'';
+function logout(){localStorage.clear();window.location.href='/'}
+
+const dz=document.getElementById('dropZone');
+const fi=document.getElementById('fileInput');
+const status=document.getElementById('status');
+const statusText=document.getElementById('statusText');
+const error=document.getElementById('error');
+const result=document.getElementById('result');
+let conversions=JSON.parse(localStorage.getItem('sierra_conversions')||'[]');
+renderHistory();
+
+dz.addEventListener('click',()=>fi.click());
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');if(e.dataTransfer.files[0])upload(e.dataTransfer.files[0])});
+fi.addEventListener('change',()=>{if(fi.files[0])upload(fi.files[0])});
+
+async function upload(file){
+    if(!file.name.toLowerCase().endsWith('.pdf')){showError('Selecione um arquivo PDF');return}
+    if(file.size>10*1024*1024){showError('Arquivo muito grande (máx 10MB)');return}
+
+    // Reset
+    error.classList.remove('show');
+    result.classList.remove('show');
+    status.classList.add('show');
+    dz.classList.add('processing');
+    statusText.textContent='⏳ Enviando PDF...';
+
+    try{
+        const form=new FormData();
+        form.append('file',file);
+
+        statusText.textContent='🔍 Identificando seguradora e extraindo dados...';
+
+        const r=await fetch('/api/conversor/upload',{
+            method:'POST',
+            headers:{'Authorization':`Bearer ${token}`},
+            body:form
+        });
+        const d=await r.json();
+
+        if(!r.ok) throw new Error(d.detail||'Erro ao processar');
+
+        // Show result
+        status.classList.remove('show');
+        result.classList.add('show');
+
+        document.getElementById('resultSeg').textContent=d.seguradora+(d.ai_used?' (via IA)':'');
+
+        const grid=document.getElementById('resultGrid');
+        const fields=[
+            ['Segurado',d.data.segurado],
+            ['CPF/CNPJ',d.data.cpf],
+            ['Veículo',d.data.veiculo],
+            ['Placa',d.data.placa],
+            ['Vigência',`${d.data.vigencia_inicio||'—'} a ${d.data.vigencia_fim||'—'}`],
+            ['Prêmio',d.data.premio_total?`R$ ${Number(d.data.premio_total).toLocaleString('pt-BR',{minimumFractionDigits:2})}`:'—'],
+            ['Franquia',d.data.franquia||'—'],
+        ].filter(([,v])=>v&&v!=='—'&&v!=='null a null');
+
+        grid.innerHTML=fields.map(([l,v])=>`
+            <div class="result-field"><div class="label">${l}</div><div class="value">${v}</div></div>
+        `).join('');
+
+        const dlBtn=document.getElementById('btnDownload');
+        dlBtn.href=d.download_url+'?token='+token;
+        dlBtn.setAttribute('download',d.filename);
+
+        // Save to history
+        conversions.unshift({name:d.filename,seg:d.seguradora,segurado:d.data.segurado,url:d.download_url,time:new Date().toISOString()});
+        if(conversions.length>20)conversions=conversions.slice(0,20);
+        localStorage.setItem('sierra_conversions',JSON.stringify(conversions));
+        renderHistory();
+
+    }catch(e){
+        status.classList.remove('show');
+        showError(e.message);
+    }
+    dz.classList.remove('processing');
+    fi.value='';
+}
+
+function showError(msg){error.textContent='❌ '+msg;error.classList.add('show')}
+
+function reset(){
+    result.classList.remove('show');
+    error.classList.remove('show');
+    status.classList.remove('show');
+    dz.classList.remove('processing');
+}
+
+function renderHistory(){
+    if(!conversions.length){document.getElementById('history').style.display='none';return}
+    document.getElementById('history').style.display='block';
+    document.getElementById('historyList').innerHTML=conversions.slice(0,5).map(c=>`
+        <div class="history-item">
+            <span>${c.segurado||'—'} · ${c.seg}</span>
+            <a href="${c.url}?token=${token}" download="${c.name}">⬇ ${c.name.substring(0,30)}...</a>
+        </div>
+    `).join('');
+}
+</script>
+<script>
+function toggleMenu(){
+    var s=document.querySelector('.sidebar');
+    var o=document.querySelector('.sidebar-overlay');
+    if(s){s.classList.toggle('open')}
+    if(o){o.classList.toggle('show')}
+}
+function closeMenu(){
+    var s=document.querySelector('.sidebar');
+    var o=document.querySelector('.sidebar-overlay');
+    if(s){s.classList.remove('open')}
+    if(o){o.classList.remove('show')}
+}
+</script>
+<script src="/static/admin-check.js"></script>
+</body>
+</html>

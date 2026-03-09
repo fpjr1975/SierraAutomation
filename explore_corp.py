@@ -1,88 +1,163 @@
-"""Explora o Corp (Infocap)."""
-import asyncio
+"""
+Explorador do Corp — mapeia menus e funcionalidades.
+"""
+
+from playwright.sync_api import sync_playwright
+import time
 import os
-from playwright.async_api import async_playwright
 
-SCREENSHOTS = "/root/sierra/screenshots"
-os.makedirs(SCREENSHOTS, exist_ok=True)
+SCREENSHOTS_DIR = "/root/sierra/corp_screenshots"
+os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
 
-async def main():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page(viewport={"width": 1280, "height": 900})
-        
-        # Corp login page 1
-        await page.goto("https://corpnuvem-14.ddns.net/")
-        await page.wait_for_load_state("networkidle")
-        await asyncio.sleep(3)
-        await page.screenshot(path=f"{SCREENSHOTS}/corp_01_login1.png")
-        print(f"Corp login1 URL: {page.url}")
-        
-        # List inputs
-        inputs = await page.query_selector_all("input")
-        for inp in inputs:
-            itype = await inp.get_attribute("type")
-            iname = await inp.get_attribute("name")
-            iid = await inp.get_attribute("id")
-            iph = await inp.get_attribute("placeholder")
-            print(f"  input: type={itype} name={iname} id={iid} placeholder={iph}")
-        
-        # List buttons
-        buttons = await page.query_selector_all("button, input[type='submit'], input[type='button'], a.btn")
-        for btn in buttons:
-            tag = await btn.evaluate("el => el.tagName")
-            text = (await btn.inner_text()).strip() if tag != "INPUT" else await btn.get_attribute("value")
-            print(f"  button: {tag} text='{text}'")
-        
-        # Try filling first login (sierra / #2025Sierra10#)
-        try:
-            user_inputs = [inp for inp in inputs if await inp.get_attribute("type") in ["text", "email", None]]
-            pass_inputs = [inp for inp in inputs if await inp.get_attribute("type") == "password"]
-            
-            if user_inputs and pass_inputs:
-                await user_inputs[0].fill("sierra")
-                await pass_inputs[0].fill("#2025Sierra10#")
-                await page.screenshot(path=f"{SCREENSHOTS}/corp_02_filled.png")
-                
-                # Try submitting
-                submit = await page.query_selector("input[type='submit'], button[type='submit'], button:has-text('Entrar'), button:has-text('Login'), button:has-text('Acessar')")
-                if submit:
-                    await submit.click()
-                else:
-                    await pass_inputs[0].press("Enter")
-                
-                await asyncio.sleep(5)
-                await page.screenshot(path=f"{SCREENSHOTS}/corp_03_after_login1.png")
-                print(f"After login1 URL: {page.url}")
-                
-                # Check for second login page
-                inputs2 = await page.query_selector_all("input")
-                for inp in inputs2:
-                    itype = await inp.get_attribute("type")
-                    iname = await inp.get_attribute("name")
-                    print(f"  input2: type={itype} name={iname}")
-                
-                user_inputs2 = [inp for inp in inputs2 if await inp.get_attribute("type") in ["text", "email", None]]
-                pass_inputs2 = [inp for inp in inputs2 if await inp.get_attribute("type") == "password"]
-                
-                if user_inputs2 and pass_inputs2:
-                    await user_inputs2[0].fill("AMANDA")
-                    await pass_inputs2[0].fill("amanda001")
-                    await page.screenshot(path=f"{SCREENSHOTS}/corp_04_login2_filled.png")
-                    
-                    submit2 = await page.query_selector("input[type='submit'], button[type='submit'], button:has-text('Entrar'), button:has-text('OK')")
-                    if submit2:
-                        await submit2.click()
-                    else:
-                        await pass_inputs2[0].press("Enter")
-                    
-                    await asyncio.sleep(5)
-                    await page.screenshot(path=f"{SCREENSHOTS}/corp_05_inside.png")
-                    print(f"Inside Corp URL: {page.url}")
-        except Exception as e:
-            print(f"Login error: {e}")
-        
-        await browser.close()
-        print("\nCorp exploration done!")
+def screenshot(page, name):
+    path = f"{SCREENSHOTS_DIR}/{name}.jpg"
+    page.screenshot(path=path, quality=90, type="jpeg")
+    print(f"📸 {name}")
+    return path
 
-asyncio.run(main())
+def login_corp(ctx):
+    """Login no portal e abre o Corp."""
+    page = ctx.new_page()
+    page.goto('https://corpnuvem-14.ddns.net/software/html5.html', timeout=30000, wait_until='networkidle')
+    
+    page.fill('#Editbox1', 'sierra')
+    page.fill('#Editbox2', 'sierr@seg0418')
+    page.click('#buttonLogOn')
+    print("✅ Login portal OK")
+    time.sleep(8)
+    
+    with ctx.expect_page(timeout=20000) as new_page_info:
+        page.click('text=Sierra')
+    
+    rdp = new_page_info.value
+    print("✅ Aba RDP aberta")
+    time.sleep(20)
+    
+    # Login Corp interno
+    rdp.mouse.click(700, 400)
+    time.sleep(0.5)
+    rdp.keyboard.press('Control+a')
+    rdp.keyboard.type('AMANDA', delay=50)
+    rdp.keyboard.press('Tab')
+    time.sleep(0.3)
+    rdp.keyboard.type('amanda001', delay=50)
+    rdp.keyboard.press('Enter')
+    print("✅ Login Corp OK")
+    time.sleep(15)
+    
+    return rdp
+
+def explore_menu(rdp, menu_name, menu_x, menu_y):
+    """Clica num menu e tira screenshot."""
+    rdp.mouse.click(menu_x, menu_y)
+    time.sleep(2)
+    screenshot(rdp, f"menu_{menu_name}")
+    return True
+
+def close_menu(rdp):
+    """Fecha menu com Escape."""
+    rdp.keyboard.press('Escape')
+    time.sleep(0.5)
+
+def main():
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        ctx = browser.new_context(viewport={'width': 1280, 'height': 900})
+        
+        rdp = login_corp(ctx)
+        screenshot(rdp, "00_home")
+        
+        # Menu positions (estimativas - preciso ajustar)
+        # Baseado no screenshot: Arquivos, Movimentos, Consultas, Ferramentas, Aplicativos, Sistema, Ajuda
+        # Estão na barra de menu superior, espaçados horizontalmente
+        
+        menus = [
+            ("01_arquivos", 35, 30),
+            ("02_movimentos", 115, 30),
+            ("03_consultas", 205, 30),
+            ("04_ferramentas", 300, 30),
+            ("05_aplicativos", 395, 30),
+            ("06_sistema", 475, 30),
+            ("07_ajuda", 530, 30),
+        ]
+        
+        for name, x, y in menus:
+            explore_menu(rdp, name, x, y)
+            time.sleep(1)
+            close_menu(rdp)
+            time.sleep(0.5)
+        
+        # Agora explora submenus importantes
+        # Primeiro: Consultas (onde devem estar clientes/apólices)
+        print("\n--- Explorando CONSULTAS ---")
+        rdp.mouse.click(205, 30)
+        time.sleep(2)
+        screenshot(rdp, "10_consultas_aberto")
+        
+        # Clica nos itens do submenu um por um
+        # Primeiro preciso ver os itens do menu
+        # Vou clicar em posições incrementais pra mapear cada item
+        
+        # Fecha consultas
+        close_menu(rdp)
+        
+        # Explora Arquivos (cadastros)
+        print("\n--- Explorando ARQUIVOS ---")
+        rdp.mouse.click(35, 30)
+        time.sleep(2)
+        screenshot(rdp, "11_arquivos_aberto")
+        close_menu(rdp)
+        
+        # Explora Movimentos
+        print("\n--- Explorando MOVIMENTOS ---")  
+        rdp.mouse.click(115, 30)
+        time.sleep(2)
+        screenshot(rdp, "12_movimentos_aberto")
+        close_menu(rdp)
+        
+        # Explora Ferramentas
+        print("\n--- Explorando FERRAMENTAS ---")
+        rdp.mouse.click(300, 30)
+        time.sleep(2)
+        screenshot(rdp, "13_ferramentas_aberto")
+        close_menu(rdp)
+        
+        # Explora Aplicativos
+        print("\n--- Explorando APLICATIVOS ---")
+        rdp.mouse.click(395, 30)
+        time.sleep(2)
+        screenshot(rdp, "14_aplicativos_aberto")
+        close_menu(rdp)
+        
+        # Explora Sistema
+        print("\n--- Explorando SISTEMA ---")
+        rdp.mouse.click(475, 30)
+        time.sleep(2)
+        screenshot(rdp, "15_sistema_aberto")
+        close_menu(rdp)
+        
+        # Agora tenta abrir a busca (ícone lupa na barra de ferramentas)
+        print("\n--- Barra de Busca ---")
+        # O ícone de busca fica na toolbar, aprox x=500, y=60
+        rdp.mouse.click(500, 60)
+        time.sleep(2)
+        screenshot(rdp, "20_busca")
+        close_menu(rdp)
+        
+        # Tenta o ícone de pessoas (cadastro de clientes?)
+        print("\n--- Ícone Pessoas ---")
+        rdp.mouse.click(50, 60)
+        time.sleep(3)
+        screenshot(rdp, "21_pessoas")
+        
+        time.sleep(2)
+        screenshot(rdp, "22_pessoas_2")
+        close_menu(rdp)
+        
+        print("\n✅ Exploração concluída!")
+        print(f"Screenshots em: {SCREENSHOTS_DIR}/")
+        
+        browser.close()
+
+if __name__ == "__main__":
+    main()

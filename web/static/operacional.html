@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vértice — Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&display=swap" rel="stylesheet">
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --bg:#f8f9fb;--card:#fff;--border:#eaecf0;
+            --text:#101828;--text-2:#344054;--text-3:#667085;--text-4:#98a2b3;
+            --blue-700:#1a5276;--blue-600:#2471a3;--blue-500:#2980b9;
+            --blue-100:#dbeafe;--blue-50:#eff6ff;
+            --gold-600:#d97706;--gold-500:#f39c12;--gold-100:#fef3c7;--gold-50:#fffbeb;
+            --green-600:#059669;--green-500:#10b981;--green-100:#d1fae5;--green-50:#ecfdf5;
+            --red-500:#ef4444;--red-100:#fee2e2;--red-50:#fef2f2;
+            --purple-500:#8b5cf6;--purple-100:#ede9fe;
+            --radius-lg:14px;
+            --shadow-sm:0 1px 2px rgba(0,0,0,.05);
+            --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+        }
+        body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;min-height:100vh}
+
+        /* ── LAYOUT ── */
+        .layout{display:flex;min-height:100vh}
+        .sidebar{width:240px;background:#fff;border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50}
+        .sidebar-brand{padding:16px 20px 18px;border-bottom:1px solid var(--border);margin-bottom:8px;text-align:center}
+        .sidebar-brand img{height:38px;display:block;margin:0 auto 6px}
+        .sidebar-brand span{font-size:10px;color:var(--text-4);font-weight:600;letter-spacing:.8px;text-transform:uppercase;display:block}
+        .sidebar-nav{flex:1;padding:4px 8px}
+        .sidebar-nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-3);text-decoration:none;font-size:13px;font-weight:500;transition:all .15s;margin-bottom:2px}
+        .sidebar-nav a:hover{background:var(--blue-50);color:var(--blue-700)}
+        .sidebar-nav a.active{background:var(--blue-50);color:var(--blue-700);font-weight:600}
+        .sidebar-nav a .icon{width:18px;text-align:center;font-size:15px}
+        .sidebar-nav .section{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;padding:16px 12px 6px}
+        .sidebar-footer{padding:12px 20px;border-top:1px solid var(--border)}
+        .sidebar-user{font-size:12px;color:var(--text-3)}.sidebar-user strong{color:var(--text);font-weight:600}
+        .btn-logout{background:none;border:none;color:var(--text-4);font-size:11px;cursor:pointer;padding:4px 0;font-family:inherit}
+        .btn-logout:hover{color:var(--red-500)}
+        .main{margin-left:240px;flex:1;min-width:0}
+
+        /* ── HEADER ── */
+        .header{padding:24px 32px 0;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:12px}
+        .header h2{font-size:22px;font-weight:700;letter-spacing:-.5px}
+        .header p{font-size:13px;color:var(--text-3);margin-top:2px}
+        .badge-live{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--green-600);background:var(--green-50);border:1px solid var(--green-100);padding:4px 10px;border-radius:20px}
+        .badge-live::before{content:'';width:6px;height:6px;background:var(--green-500);border-radius:50%;animation:pulse-dot 2s infinite}
+        @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.4}}
+        .content{padding:20px 32px 40px}
+
+        /* ── KPI STRIP ── */
+        .kpi-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow);margin-bottom:24px}
+        .kpi-item{background:#fff;padding:18px 16px}
+        .kpi-label{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.5px}
+        .kpi-val{font-size:22px;font-weight:700;letter-spacing:-.5px;line-height:1.2;margin-top:4px}
+        .kpi-sub{font-size:11px;color:var(--text-4);margin-top:2px}
+        @media(max-width:1200px){.kpi-strip{grid-template-columns:repeat(4,1fr)}}
+        @media(max-width:700px){.kpi-strip{grid-template-columns:repeat(2,1fr)}}
+
+        /* ── GRID ── */
+        .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+        @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+
+        /* ── CARD ── */
+        .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden}
+        .card-h{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+        .card-title{font-size:13px;font-weight:600;color:var(--text)}
+        .card-link{font-size:11px;color:var(--blue-600);font-weight:500;text-decoration:none}
+        .card-link:hover{text-decoration:underline}
+
+        /* ── TABLE ── */
+        table{width:100%;border-collapse:collapse}
+        th{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.4px;padding:8px 14px;text-align:left;background:#fafbfc;border-bottom:1px solid var(--border)}
+        td{padding:9px 14px;font-size:12px;border-bottom:1px solid #f3f4f6}
+        tr:last-child td{border-bottom:none}
+        tr:hover td{background:#f9fafb}
+        .r{text-align:right}
+        .mono{font-variant-numeric:tabular-nums;font-feature-settings:'tnum'}
+        a.link{color:var(--blue-600);text-decoration:none;font-weight:500}
+        a.link:hover{color:var(--blue-700);text-decoration:underline}
+        .pill{display:inline-flex;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600}
+        .pill-green{background:var(--green-100);color:var(--green-600)}
+        .pill-gold{background:var(--gold-100);color:var(--gold-600)}
+        .pill-red{background:var(--red-100);color:var(--red-500)}
+        .pill-blue{background:var(--blue-100);color:var(--blue-600)}
+        .pill-gray{background:#f3f4f6;color:var(--text-4)}
+
+        /* ── SEGURADORA BARS ── */
+        .seg-list{padding:12px 16px}
+        .seg-item{padding:5px 0}
+        .seg-meta{display:flex;justify-content:space-between;margin-bottom:3px}
+        .seg-nome{font-size:12px;font-weight:500;color:var(--text-2)}
+        .seg-vals{font-size:11px;color:var(--text-4)}
+        .seg-track{height:5px;background:#f3f4f6;border-radius:3px;overflow:hidden}
+        .seg-fill{height:100%;border-radius:3px;transition:width .8s cubic-bezier(.4,0,.2,1)}
+
+        /* ── VENCER CARDS ── */
+        .vencer-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px}
+        .vc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:14px;cursor:pointer;text-decoration:none;transition:all .15s}
+        .vc-card:hover{box-shadow:var(--shadow);border-color:var(--blue-500)}
+        .vc-icon{font-size:28px;flex-shrink:0}
+        .vc-label{font-size:11px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.5px}
+        .vc-val{font-size:26px;font-weight:700;letter-spacing:-.5px;line-height:1}
+        .vc-card.c30 .vc-val{color:var(--gold-600)}
+        .vc-card.c60 .vc-val{color:#ea580c}
+        .vc-card.c90 .vc-val{color:var(--red-500)}
+        @media(max-width:700px){.vencer-row{grid-template-columns:1fr}}
+
+        /* ── EMPTY ── */
+        .empty{text-align:center;color:var(--text-4);font-size:12px;padding:28px}
+
+        /* ── MOBILE ── */
+        .mobile-nav{display:none;position:fixed;top:0;left:0;right:0;height:52px;background:#154360;z-index:200;align-items:center;padding:0 16px;gap:12px}
+        .mobile-nav h2{color:#fff;font-size:14px;font-weight:700;flex:1}
+        .mobile-nav .ham{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:8px}
+        .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150}
+        @media(max-width:768px){
+            .mobile-nav{display:flex!important}
+            .main{margin-left:0;padding-top:60px}
+            .sidebar{transform:translateX(-100%);transition:transform .2s}
+            .sidebar.open{transform:translateX(0)!important;z-index:160}
+            .sidebar-overlay.show{display:block}
+            .header,.content{padding-left:16px;padding-right:16px}
+            table{min-width:560px}
+            .card{overflow-x:auto;-webkit-overflow-scrolling:touch}
+        }
+    </style>
+</head>
+<body>
+<div class="mobile-nav">
+    <button class="ham" onclick="toggleMenu()">☰</button>
+    <h2>Dashboard</h2>
+</div>
+<div class="sidebar-overlay" onclick="closeMenu()"></div>
+<div class="layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <img src="/static/logo-sierra-full.png" alt="Sierra Seguros">
+            <span>Vértice</span>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="section">Principal</div>
+            <a href="/analytics"><span class="icon">📊</span> Painel Gerencial</a>
+            <a href="/dashboard" class="active"><span class="icon">🏠</span> Dashboard</a>
+            <a href="/cotacoes"><span class="icon">🧮</span> Nova Cotação</a>
+            <a href="/clientes"><span class="icon">👥</span> Clientes</a>
+            <a href="/apolices"><span class="icon">📋</span> Apólices</a>
+            <a href="/renovacoes"><span class="icon">🔄</span> Renovações</a>
+            <div class="section">Ferramentas</div>
+            <a href="/conversor"><span class="icon">📄</span> Conversor PDF</a>
+            <a href="/seguranca"><span class="icon">🔒</span> Segurança</a>
+                    <div class="section" id="adminSection" style="display:none">Administração</div>
+            <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user"><strong id="sideUser"></strong><br>Sierra Seguros</div>
+            <button class="btn-logout" onclick="logout()">Sair →</button>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="main">
+        <div class="header">
+            <div>
+                <h2>Dashboard</h2>
+                <p>Visão geral da carteira Sierra Seguros</p>
+            </div>
+            <span class="badge-live">Dados atualizados</span>
+        </div>
+
+        <div class="content">
+
+            <!-- KPI Strip -->
+            <div class="kpi-strip">
+                <div class="kpi-item">
+                    <div class="kpi-label">Clientes</div>
+                    <div class="kpi-val" id="kClientes" style="color:var(--blue-700)">—</div>
+                </div>
+                <div class="kpi-item">
+                    <div class="kpi-label">Apólices</div>
+                    <div class="kpi-val" id="kApolices">—</div>
+                </div>
+                <div class="kpi-item">
+                    <div class="kpi-label">Vigentes</div>
+                    <div class="kpi-val" id="kVigentes" style="color:var(--green-600)">—</div>
+                </div>
+                <div class="kpi-item">
+                    <div class="kpi-label">Prêmio Carteira</div>
+                    <div class="kpi-val" id="kPremio" style="color:var(--blue-700);font-size:15px;margin-top:6px">—</div>
+                </div>
+                <div class="kpi-item">
+                    <div class="kpi-label">Vencendo 30d</div>
+                    <div class="kpi-val" id="kV30" style="color:var(--gold-600)">—</div>
+                </div>
+                <div class="kpi-item">
+                    <div class="kpi-label">Vencendo 60d</div>
+                    <div class="kpi-val" id="kV60" style="color:#ea580c">—</div>
+                </div>
+                <div class="kpi-item">
+                    <div class="kpi-label">Vencendo 90d</div>
+                    <div class="kpi-val" id="kV90" style="color:var(--red-500)">—</div>
+                </div>
+            </div>
+
+            <!-- Vencer shortcut cards -->
+            <div class="vencer-row">
+                <a class="vc-card c30" href="/apolices?vigencia=30d">
+                    <div class="vc-icon">⚠️</div>
+                    <div>
+                        <div class="vc-label">A vencer em 30 dias</div>
+                        <div class="vc-val" id="vc30">—</div>
+                    </div>
+                </a>
+                <a class="vc-card c60" href="/apolices?vigencia=60d">
+                    <div class="vc-icon">⏰</div>
+                    <div>
+                        <div class="vc-label">A vencer em 60 dias</div>
+                        <div class="vc-val" id="vc60">—</div>
+                    </div>
+                </a>
+                <a class="vc-card c90" href="/apolices?vigencia=90d">
+                    <div class="vc-icon">📅</div>
+                    <div>
+                        <div class="vc-label">A vencer em 90 dias</div>
+                        <div class="vc-val" id="vc90">—</div>
+                    </div>
+                </a>
+            </div>
+
+            <div class="grid2">
+                <!-- Últimas 10 apólices importadas -->
+                <div class="card">
+                    <div class="card-h">
+                        <span class="card-title">📥 Últimas Apólices Importadas</span>
+                        <a class="card-link" href="/apolices">Ver todas →</a>
+                    </div>
+                    <div id="ultimasTable"><div class="empty">Carregando…</div></div>
+                </div>
+
+                <!-- Apólices por seguradora -->
+                <div class="card">
+                    <div class="card-h">
+                        <span class="card-title">🏢 Apólices por Seguradora</span>
+                        <a class="card-link" href="/analytics">Análise completa →</a>
+                    </div>
+                    <div class="seg-list" id="segList"><div class="empty">Carregando…</div></div>
+                </div>
+            </div>
+
+            <!-- Cotações recentes e renovações -->
+            <div class="grid2">
+                <div class="card">
+                    <div class="card-h">
+                        <span class="card-title">🧮 Cotações Recentes</span>
+                        <a class="card-link" href="/cotacoes">Nova cotação →</a>
+                    </div>
+                    <div id="cotTable"><div class="empty">Carregando…</div></div>
+                </div>
+                <div class="card">
+                    <div class="card-h">
+                        <span class="card-title">🔄 Renovações (30 dias)</span>
+                        <div style="display:flex;gap:6px;align-items:center">
+                            <button onclick="window.open('/api/analytics/renovacoes-pdf?dias=30&token='+localStorage.getItem('sierra_token'),'_blank')" style="padding:3px 8px;border-radius:5px;font-size:10px;font-weight:600;border:1px solid #ddd;background:#fff;cursor:pointer;font-family:inherit">📄 PDF</button>
+                            <a class="card-link" href="/renovacoes">Pipeline →</a>
+                        </div>
+                    </div>
+                    <div id="renTable"><div class="empty">Carregando…</div></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+const token = localStorage.getItem('sierra_token');
+if (!token) window.location.href = '/';
+
+const user = JSON.parse(localStorage.getItem('sierra_user') || '{}');
+document.getElementById('sideUser').textContent = user.nome || '';
+
+const H = { 'Authorization': `Bearer ${token}` };
+const R$ = n => n != null ? 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+const fD = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+const COLORS = ['#2980b9','#1a5276','#27ae60','#d97706','#8b5cf6','#ef4444','#0891b2','#059669','#f39c12','#6366f1'];
+
+function logout() { localStorage.clear(); window.location.href = '/'; }
+function toggleMenu() {
+    document.querySelector('.sidebar').classList.toggle('open');
+    document.querySelector('.sidebar-overlay').classList.toggle('show');
+}
+function closeMenu() {
+    document.querySelector('.sidebar').classList.remove('open');
+    document.querySelector('.sidebar-overlay').classList.remove('show');
+}
+
+async function loadDashboard() {
+    // 1. Stats de apólices
+    try {
+        const r = await fetch('/api/apolices/stats', { headers: H });
+        if (r.status === 401) { logout(); return; }
+        const d = await r.json();
+
+        // KPI strip
+        document.getElementById('kClientes').textContent = d.total_clientes?.toLocaleString('pt-BR') || '—';
+        document.getElementById('kApolices').textContent = d.total?.toLocaleString('pt-BR') || '—';
+        document.getElementById('kVigentes').textContent = d.vigentes?.toLocaleString('pt-BR') || '—';
+        document.getElementById('kPremio').textContent = R$(d.premio_total);
+        document.getElementById('kV30').textContent = d.a_vencer_30 ?? '—';
+        document.getElementById('kV60').textContent = d.a_vencer_60 ?? '—';
+        document.getElementById('kV90').textContent = d.a_vencer_90 ?? '—';
+        document.getElementById('vc30').textContent = d.a_vencer_30 ?? '—';
+        document.getElementById('vc60').textContent = d.a_vencer_60 ?? '—';
+        document.getElementById('vc90').textContent = d.a_vencer_90 ?? '—';
+
+        // Últimas 10 apólices
+        if (d.ultimas && d.ultimas.length) {
+            const rows = d.ultimas.map(a => {
+                const sp = { 'vigente': 'pill-green', 'vencida': 'pill-red', 'cancelada': 'pill-gray' }[a.status] || 'pill-blue';
+                return `<tr>
+                    <td style="font-weight:500">${(a.cliente_nome||'—').substring(0,24)}</td>
+                    <td style="font-weight:600;color:var(--blue-700)">${a.seguradora_nome}</td>
+                    <td class="mono">${a.numero_apolice || '—'}</td>
+                    <td class="mono r">${R$(a.premio)}</td>
+                    <td><span class="pill ${sp}">${a.status || '—'}</span></td>
+                </tr>`;
+            }).join('');
+            document.getElementById('ultimasTable').innerHTML = `
+                <table><thead><tr>
+                    <th>Cliente</th><th>Seguradora</th><th>Nº Apólice</th>
+                    <th class="r">Prêmio</th><th>Status</th>
+                </tr></thead><tbody>${rows}</tbody></table>`;
+        } else {
+            document.getElementById('ultimasTable').innerHTML = '<div class="empty">Sem apólices ainda</div>';
+        }
+
+        // Gráfico por seguradora (barras CSS)
+        if (d.por_seguradora && d.por_seguradora.length) {
+            const maxQty = Math.max(...d.por_seguradora.map(s => s.qty));
+            const items = d.por_seguradora.map((s, i) => {
+                const pct = maxQty > 0 ? (s.qty / maxQty * 100).toFixed(1) : 0;
+                return `<div class="seg-item">
+                    <div class="seg-meta">
+                        <span class="seg-nome">${s.nome}</span>
+                        <span class="seg-vals">${s.qty} apólices · ${R$(s.premio)}</span>
+                    </div>
+                    <div class="seg-track">
+                        <div class="seg-fill" style="width:${pct}%;background:${COLORS[i % COLORS.length]}"></div>
+                    </div>
+                </div>`;
+            }).join('');
+            document.getElementById('segList').innerHTML = items;
+        } else {
+            document.getElementById('segList').innerHTML = '<div class="empty">Sem dados de seguradoras</div>';
+        }
+    } catch (e) { console.error('Erro stats:', e); }
+
+    // 2. Cotações recentes
+    try {
+        const r = await fetch('/api/dashboard/cotacoes-recentes', { headers: H });
+        const d = await r.json();
+        if (!d.length) {
+            document.getElementById('cotTable').innerHTML = '<div class="empty">Nenhuma cotação</div>';
+        } else {
+            const rows = d.slice(0, 8).map(c => {
+                let pdfCol = '—';
+                if (c.pdfs && c.pdfs.length > 0) {
+                    pdfCol = c.pdfs.map(p => 
+                        `<a href="/api/cotacoes/pdf/${p.id}" target="_blank" style="display:inline-block;padding:2px 6px;background:#eff6ff;color:#1a56db;border-radius:4px;font-size:11px;font-weight:600;text-decoration:none;margin:1px" title="Baixar PDF ${p.seguradora}">📄 ${p.seguradora.substring(0,12)}</a>`
+                    ).join(' ');
+                }
+                return `<tr>
+                <td style="font-weight:500">${(c.cliente||'—').substring(0,22)}</td>
+                <td>${c.veiculo || '—'}</td>
+                <td><span class="pill pill-blue">${c.status}</span></td>
+                <td class="mono">${fD(c.data)}</td>
+                <td>${pdfCol}</td>
+            </tr>`;
+            }).join('');
+            document.getElementById('cotTable').innerHTML = `
+                <table><thead><tr><th>Cliente</th><th>Veículo</th><th>Status</th><th>Data</th><th>PDF</th></tr></thead>
+                <tbody>${rows}</tbody></table>`;
+        }
+    } catch (e) {
+        document.getElementById('cotTable').innerHTML = '<div class="empty">Sem dados</div>';
+    }
+
+    // 3. Renovações 30d
+    try {
+        const r = await fetch('/api/dashboard/renovacoes?dias=30', { headers: H });
+        const d = await r.json();
+        if (!d.length) {
+            document.getElementById('renTable').innerHTML = '<div class="empty">Nenhuma renovação nos próximos 30 dias</div>';
+        } else {
+            const rows = d.slice(0, 8).map(r => `<tr>
+                <td><a class="link" href="/clientes#cliente/${r.id}">${(r.cliente||'—').substring(0,22)}</a></td>
+                <td style="font-weight:600;color:var(--blue-700)">${r.seguradora || '—'}</td>
+                <td><span class="pill pill-gold">${fD(r.vigencia_fim)}</span></td>
+                <td class="r mono">${R$(r.premio)}</td>
+            </tr>`).join('');
+            document.getElementById('renTable').innerHTML = `
+                <table><thead><tr><th>Cliente</th><th>Seguradora</th><th>Vencimento</th><th class="r">Prêmio</th></tr></thead>
+                <tbody>${rows}</tbody></table>`;
+        }
+    } catch (e) {
+        document.getElementById('renTable').innerHTML = '<div class="empty">Sem dados</div>';
+    }
+}
+
+// Processa ?vigencia= na URL e redireciona para apólices
+const urlParams = new URLSearchParams(window.location.search);
+const vigParam = urlParams.get('vigencia');
+if (vigParam) {
+    window.location.href = `/apolices?vigencia=${vigParam}`;
+} else {
+    loadDashboard();
+}
+</script>
+<script src="/static/admin-check.js"></script>
+</body>
+</html>

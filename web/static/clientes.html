@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vértice — Clientes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --bg:#f8f9fb;--card:#fff;--border:#eaecf0;
+            --text:#101828;--text-2:#344054;--text-3:#667085;--text-4:#98a2b3;
+            --blue-700:#1a5276;--blue-600:#2471a3;--blue-500:#2980b9;
+            --blue-100:#dbeafe;--blue-50:#eff6ff;
+            --gold-600:#d97706;--gold-100:#fef3c7;
+            --green-600:#059669;--green-100:#d1fae5;--green-50:#ecfdf5;
+            --red-500:#ef4444;--red-100:#fee2e2;
+            --radius-lg:14px;
+            --shadow-sm:0 1px 2px rgba(0,0,0,.05);
+            --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+        }
+        body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;min-height:100vh}
+
+        .layout{display:flex;min-height:100vh}
+        .sidebar{width:240px;background:#fff;border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50}
+        .sidebar-brand{padding:16px 20px 18px;border-bottom:1px solid var(--border);margin-bottom:8px;text-align:center}
+        .sidebar-brand img{height:38px;display:block;margin:0 auto 6px}
+        .sidebar-brand span{font-size:10px;color:var(--text-4);font-weight:600;letter-spacing:.8px;text-transform:uppercase;display:block}
+        .sidebar-nav{flex:1;padding:4px 8px}
+        .sidebar-nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-3);text-decoration:none;font-size:13px;font-weight:500;transition:all .15s;margin-bottom:2px}
+        .sidebar-nav a:hover{background:var(--blue-50);color:var(--blue-700)}
+        .sidebar-nav a.active{background:var(--blue-50);color:var(--blue-700);font-weight:600}
+        .sidebar-nav a .icon{width:18px;text-align:center;font-size:15px}
+        .sidebar-nav .section{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;padding:16px 12px 6px}
+        .sidebar-footer{padding:12px 20px;border-top:1px solid var(--border)}
+        .sidebar-user{font-size:12px;color:var(--text-3)}.sidebar-user strong{color:var(--text);font-weight:600}
+        .btn-logout{background:none;border:none;color:var(--text-4);font-size:11px;cursor:pointer;padding:4px 0;font-family:inherit}
+        .btn-logout:hover{color:var(--red-500)}
+        .main{margin-left:240px;flex:1;min-width:0}
+        @media(max-width:768px){.sidebar{transform:translateX(-100%)}.main{margin-left:0}}
+
+        .header{padding:24px 32px 0;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:12px}
+        .header h2{font-size:22px;font-weight:700;letter-spacing:-.5px}
+        .content{padding:20px 32px 40px}
+
+        /* Search */
+        .search-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+        .search-bar input{
+            flex:1;max-width:400px;padding:10px 14px;
+            border:1px solid var(--border);border-radius:10px;
+            font-size:13px;font-family:inherit;outline:none;
+            background:#fff;transition:all .15s;
+        }
+        .search-bar input:focus{border-color:var(--blue-500);box-shadow:0 0 0 3px rgba(41,128,185,.12)}
+        .search-bar button{
+            background:var(--blue-700);color:#fff;border:none;
+            padding:10px 20px;border-radius:10px;font-size:13px;
+            font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s;
+        }
+        .search-bar button:hover{background:var(--blue-600)}
+        .filter-bar{display:flex;gap:6px;margin-bottom:20px;align-items:center}
+        .filter-bar span{font-size:12px;color:var(--text-4);font-weight:500}
+        .fbtn{
+            padding:6px 14px;border-radius:8px;font-size:12px;font-weight:500;
+            border:1px solid var(--border);background:#fff;color:var(--text-3);
+            cursor:pointer;font-family:inherit;transition:all .15s;
+        }
+        .fbtn:hover{border-color:var(--blue-500);color:var(--blue-600)}
+        .fbtn.active{background:var(--blue-50);border-color:var(--blue-500);color:var(--blue-700);font-weight:600}
+        .fbtn .count{font-size:10px;color:var(--text-4);margin-left:4px}
+        .fbtn.active .count{color:var(--blue-600)}
+        .status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px}
+        .dot-green{background:var(--green-600)}
+        .dot-gray{background:var(--text-4)}
+
+        .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden}
+        table{width:100%;border-collapse:collapse}
+        th{font-size:11px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.4px;padding:10px 16px;text-align:left;background:#fafbfc;border-bottom:1px solid var(--border)}
+        td{padding:10px 16px;font-size:13px;border-bottom:1px solid #f3f4f6}
+        tr:last-child td{border-bottom:none}
+        tr:hover td{background:#f9fafb}
+        .r{text-align:right}
+        .mono{font-variant-numeric:tabular-nums}
+        a.link{color:var(--blue-600);text-decoration:none;font-weight:500}
+        a.link:hover{color:var(--blue-700);text-decoration:underline}
+        .pill{display:inline-flex;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600}
+        .pill-green{background:var(--green-100);color:var(--green-600)}
+        .pill-gold{background:var(--gold-100);color:var(--gold-600)}
+        .pill-blue{background:var(--blue-100);color:var(--blue-600)}
+        .pill-red{background:var(--red-100);color:var(--red-500)}
+        .pill-muted{background:#f3f4f6;color:var(--text-4)}
+        .empty{text-align:center;color:var(--text-4);font-size:13px;padding:40px}
+        .page-btn{padding:6px 14px;border:1px solid var(--border);border-radius:6px;background:#fff;font-size:12px;font-weight:500;color:var(--text-2);cursor:pointer;font-family:inherit}
+        .page-btn:hover:not(:disabled){background:var(--blue-50);border-color:var(--blue-600);color:var(--blue-700)}
+        .page-btn:disabled{opacity:.4;cursor:default}
+
+        /* Ficha */
+        .back-btn{display:inline-flex;align-items:center;gap:5px;color:var(--text-3);text-decoration:none;font-size:13px;font-weight:500;margin-bottom:16px;padding:6px 12px;border-radius:8px;transition:all .15s}
+        .back-btn:hover{background:var(--blue-50);color:var(--blue-700)}
+        .ficha-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px;box-shadow:var(--shadow-sm)}
+        .ficha-top{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:20px}
+        .ficha-name{font-size:22px;font-weight:700;color:var(--blue-700);letter-spacing:-.5px}
+        .ficha-meta{font-size:13px;color:var(--text-3);margin-top:4px;display:flex;flex-wrap:wrap;gap:16px}
+        .ficha-stats{display:flex;gap:24px;flex-wrap:wrap}
+        .fstat{text-align:center;min-width:80px}
+        .fstat-val{font-size:24px;font-weight:700;letter-spacing:-.5px}
+        .fstat-label{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+        .section-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px}
+
+        .apo-card{
+            background:#fafbfc;border:1px solid var(--border);border-radius:10px;
+            padding:16px 18px;margin-bottom:10px;transition:all .15s;
+        }
+        .apo-card:hover{border-color:var(--blue-500);box-shadow:0 0 0 2px rgba(41,128,185,.06)}
+        .apo-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+        .apo-seg{font-weight:700;font-size:14px;color:var(--blue-700);display:flex;align-items:center;gap:8px}
+        .apo-num{font-size:12px;color:var(--text-4);font-family:monospace}
+        .apo-info{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-3)}
+        .apo-info span{display:flex;align-items:center;gap:3px}
+        .parc-btn{
+            margin-top:8px;background:none;border:1px solid var(--border);
+            color:var(--text-3);padding:5px 12px;border-radius:6px;
+            font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s;
+        }
+        .parc-btn:hover{border-color:var(--blue-500);color:var(--blue-600)}
+        .parc-list{display:none;margin-top:10px}
+        .parc-list.show{display:block}
+        .parc-list table td{padding:6px 10px;font-size:12px}
+        .parc-list table th{padding:6px 10px}
+        
+        /* Documentos */
+        .docs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+        .doc-card{
+            background:#fafbfc;border:1px solid var(--border);border-radius:10px;
+            padding:14px 16px;display:flex;align-items:center;gap:10px;
+            cursor:pointer;transition:all .15s;text-decoration:none;color:inherit;
+        }
+        .doc-card:hover{border-color:var(--blue-500);box-shadow:0 0 0 2px rgba(41,128,185,.06);background:var(--blue-50)}
+        .doc-icon{font-size:24px;flex-shrink:0}
+        .doc-info{overflow:hidden;flex:1}
+        .doc-name{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .doc-meta{font-size:10px;color:var(--text-4);margin-top:2px;display:flex;gap:8px}
+        .doc-tipo{display:inline-flex;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:600;background:var(--blue-100);color:var(--blue-600)}
+        .doc-dl{color:var(--blue-500);font-size:14px;flex-shrink:0;opacity:.5;transition:opacity .15s}
+        .doc-card:hover .doc-dl{opacity:1}
+        .docs-empty{text-align:center;color:var(--text-4);font-size:13px;padding:30px;background:#fafbfc;border:1px dashed var(--border);border-radius:10px}
+        .tab-bar{display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:0}
+        .tab-btn{
+            padding:8px 16px;font-size:13px;font-weight:600;color:var(--text-3);
+            background:none;border:none;border-bottom:2px solid transparent;
+            margin-bottom:-2px;cursor:pointer;font-family:inherit;transition:all .15s;
+        }
+        .tab-btn:hover{color:var(--blue-600)}
+        .tab-btn.active{color:var(--blue-700);border-bottom-color:var(--blue-700)}
+        .tab-btn .badge{
+            display:inline-flex;align-items:center;justify-content:center;
+            min-width:18px;height:18px;padding:0 5px;border-radius:9px;
+            font-size:10px;font-weight:700;background:var(--blue-100);color:var(--blue-600);margin-left:6px;
+        }
+        .tab-content{display:none}
+        .tab-content.active{display:block}
+        @media(max-width:640px){.ficha-top{flex-direction:column}.ficha-stats{margin-top:12px}.docs-grid{grid-template-columns:1fr}}
+    </style>
+    <style>
+        .mobile-nav{display:none;position:fixed;top:0;left:0;right:0;height:52px;background:#154360;z-index:200;align-items:center;padding:0 16px;gap:12px}
+        .mobile-nav h2{color:#fff;font-size:14px;font-weight:700;flex:1}
+        .mobile-nav .ham{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:8px}
+        .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150}
+        @media(max-width:768px){
+            .mobile-nav{display:flex!important}
+            .main,.content,[class*="main"]{padding-top:60px!important}
+            .sidebar{transform:translateX(-100%);transition:transform .2s}
+            .sidebar.open{transform:translateX(0)!important;display:flex!important;z-index:160}
+            .sidebar-overlay.show{display:block}
+        }
+    </style>
+
+    <style>
+        @media(max-width:768px){
+            .main,.content{margin-left:0!important;padding:60px 12px 12px!important}
+            .header,.page-header{flex-direction:column;gap:8px;align-items:flex-start!important}
+            .header h1,.page-header h1{font-size:18px}
+            .kpi-strip,.stats-grid,.kpi-row{grid-template-columns:repeat(2,1fr)!important;gap:8px}
+            .card,.glass{overflow-x:auto;-webkit-overflow-scrolling:touch}
+            table{min-width:600px}
+            .g2,.g3,.g23,.grid-2,.grid-3{grid-template-columns:1fr!important}
+            .search-bar{flex-direction:column}
+            .search-bar input{max-width:100%!important}
+            .filter-bar{flex-wrap:wrap}
+        }
+    </style>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <div class="mobile-nav">
+        <button class="ham" onclick="toggleMenu()">☰</button>
+        <h2>Sierra Seguros</h2>
+    </div>
+    <div class="sidebar-overlay" onclick="closeMenu()"></div>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand"><img src="/static/logo-sierra-full.png" alt="Sierra — Soluções em Seguros"><span>Vértice</span></div>
+            <nav class="sidebar-nav">
+                <div class="section">Principal</div>
+                <a href="/analytics"><span class="icon">📊</span> Painel Gerencial</a>
+                <a href="/dashboard"><span class="icon">🏠</span> Dashboard</a>
+                <a href="/cotacoes"><span class="icon">🧮</span> Nova Cotação</a>
+                <a href="/clientes" class="active"><span class="icon">👥</span> Clientes</a>
+                <a href="/apolices"><span class="icon">📋</span> Apólices</a>
+                <a href="/renovacoes"><span class="icon">🔄</span> Renovações</a>
+                <div class="section">Ferramentas</div>
+                <a href="/conversor"><span class="icon">📄</span> Conversor PDF</a>
+                <div class="section">Administração</div>
+                <a href="/seguranca"><span class="icon">🔒</span> Segurança</a>
+                        <div class="section" id="adminSection" style="display:none">Administração</div>
+            <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+        </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-user"><strong id="sideUser"></strong><br>Sierra Seguros</div>
+                <button class="btn-logout" onclick="logout()">Sair →</button>
+            </div>
+        </aside>
+        <div class="main">
+            <div class="header"><div><h2 id="pageTitle">Clientes</h2></div></div>
+            <div class="content" id="app"></div>
+        </div>
+    </div>
+
+<script>
+const token=localStorage.getItem('sierra_token');
+if(!token)window.location.href='/';
+const user=JSON.parse(localStorage.getItem('sierra_user')||'{}');
+document.getElementById('sideUser').textContent=user.nome||'';
+const H={'Authorization':`Bearer ${token}`};
+const R$=n=>n!=null?'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+const R0=n=>n!=null?'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}):'—';
+const fD=d=>d?d.split('-').reverse().join('/'):'—';
+const app=document.getElementById('app');
+
+function logout(){localStorage.clear();window.location.href='/'}
+
+function route(){
+    const h=location.hash||'#lista';
+    if(h.startsWith('#cliente/'))loadFicha(h.split('/')[1]);
+    else loadLista();
+}
+window.addEventListener('hashchange',route);
+
+let currentFilter='todos';
+let currentPage=1;
+let currentAno='';
+function goPage(p){currentPage=p;buscar()}
+function setAno(a){currentAno=a;currentPage=1;buscar()}
+async function loadAnos(){
+    const sel=document.getElementById('anoFilter');
+    if(!sel) return;
+    const st=currentFilter==='todos'?'':currentFilter;
+    const r=await fetch(`/api/analytics/clientes-anos?status=${st||'inativo'}`,{headers:H});
+    if(r.status===401) return;
+    const anos=await r.json();
+    sel.innerHTML='<option value="">Todos os anos</option>'+
+        anos.map(a=>`<option value="${a.ano||0}" ${String(a.ano||0)===currentAno?'selected':''}>${a.label} (${a.total})</option>`).join('');
+}
+
+let clienteStats={};
+
+async function loadLista(){
+    document.getElementById('pageTitle').textContent='Clientes';
+    
+    // Load stats
+    const sr=await fetch('/api/analytics/clientes-stats',{headers:H});
+    if(sr.ok) clienteStats=await sr.json();
+    const ativos=clienteStats.ativo||0;
+    const inativos=clienteStats.inativo||0;
+    const total=ativos+inativos;
+    
+    app.innerHTML=`
+        <div class="search-bar">
+            <input type="text" id="q" placeholder="Buscar por nome, CPF ou CNPJ..." onkeydown="if(event.key==='Enter')buscar()">
+            <button onclick="buscar()">Buscar</button>
+        </div>
+        <div class="filter-bar">
+            <span>Filtrar:</span>
+            <button class="fbtn active" data-f="todos" onclick="setFilter('todos')">Todos <span class="count">${total}</span></button>
+            <button class="fbtn" data-f="ativo" onclick="setFilter('ativo')">🟢 Ativos <span class="count">${ativos}</span></button>
+            <button class="fbtn" data-f="inativo" onclick="setFilter('inativo')">⚫ Inativos <span class="count">${inativos}</span></button>
+            <span style="margin-left:12px">Ano:</span>
+            <select id="anoFilter" onchange="setAno(this.value)" style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;background:#fff;color:var(--text-2)">
+                <option value="">Todos os anos</option>
+            </select>
+        </div>
+        <div class="card"><div class="empty" id="results">Use a busca acima ou selecione um filtro</div></div>
+    `;
+}
+
+function setFilter(f){
+    currentFilter=f;
+    currentPage=1;
+    currentAno='';
+    document.querySelectorAll('.fbtn').forEach(b=>{
+        b.classList.toggle('active',b.getAttribute('data-f')===f);
+    });
+    loadAnos();
+    buscar();
+}
+
+async function buscar(){
+    const q=(document.getElementById('q')||{}).value?.trim()||'';
+    const res=document.getElementById('results');
+    if(!res)return;
+    
+    if(q.length<2 && currentFilter==='todos'){
+        res.innerHTML='<div class="empty">Digite um nome/CPF ou selecione Ativos/Inativos</div>';
+        return;
+    }
+    
+    res.innerHTML='<div class="empty">Buscando...</div>';
+    let url=`/api/analytics/busca-clientes?status=${currentFilter}&page=${currentPage}&limit=50`;
+    if(q.length>=2) url+=`&q=${encodeURIComponent(q)}`;
+    if(currentAno) url+=`&ano=${currentAno}`;
+    
+    const r=await fetch(url,{headers:H});
+    if(r.status===401){logout();return}
+    const resp=await r.json();
+    const data=resp.items||resp;
+    const total=resp.total||data.length;
+    const pages=resp.pages||1;
+    if(!data.length){res.innerHTML='<div class="empty">Nenhum cliente encontrado</div>';return}
+
+    let paginationHTML='';
+    if(pages>1){
+        paginationHTML='<div style="display:flex;justify-content:center;align-items:center;gap:8px;padding:14px;border-top:1px solid var(--border)">';
+        paginationHTML+=`<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage<=1?'disabled':''}>← Anterior</button>`;
+        paginationHTML+=`<span style="font-size:12px;color:var(--text-3)">Página ${currentPage} de ${pages} · ${total} clientes</span>`;
+        paginationHTML+=`<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage>=pages?'disabled':''}>Próxima →</button>`;
+        paginationHTML+='</div>';
+    } else {
+        paginationHTML=`<div style="text-align:center;padding:10px;font-size:11px;color:var(--text-4)">${total} cliente${total!==1?'s':''}</div>`;
+    }
+
+    res.innerHTML=`<table>
+        <thead><tr><th>Nome</th><th>CPF/CNPJ</th><th>Cidade</th><th>UF</th><th>Status</th><th>Último Ano</th><th class="r">Apólices</th><th style="text-align:center">Docs</th></tr></thead>
+        <tbody>${data.map(c=>`
+            <tr style="cursor:pointer" onclick="location.hash='cliente/${c.id}'">
+                <td><a class="link" href="#cliente/${c.id}">${c.nome}</a></td>
+                <td class="mono">${c.cpf||'—'}</td>
+                <td>${c.cidade||'—'}</td>
+                <td>${c.uf||'—'}</td>
+                <td><span class="status-dot ${c.status==='ativo'?'dot-green':'dot-gray'}"></span>${c.status==='ativo'?'Ativo':'Inativo'}</td>
+                <td class="mono">${c.ultimo_ano||'—'}</td>
+                <td class="r mono">${c.apolices}</td>
+                <td style="text-align:center"><span class="status-dot ${c.tem_docs?'dot-green':'dot-gray'}" title="${c.tem_docs?'Com documentos':'Sem documentos'}"></span></td>
+            </tr>
+        `).join('')}</tbody>
+    </table>${paginationHTML}`;
+}
+
+async function loadFicha(id){
+    app.innerHTML='<div class="empty">Carregando...</div>';
+    const r=await fetch(`/api/analytics/cliente/${id}`,{headers:H});
+    if(r.status===401){logout();return}
+    const c=await r.json();
+    if(c.error){app.innerHTML=`<div class="empty">${c.error}</div>`;return}
+    document.getElementById('pageTitle').textContent=c.nome;
+
+    const ativas=c.apolices.filter(a=>a.status==='vigente').length;
+    const vencidas=c.apolices.length-ativas;
+
+    app.innerHTML=`
+        <a class="back-btn" href="#lista">← Voltar</a>
+        <div class="ficha-card">
+            <div class="ficha-top">
+                <div>
+                    <div class="ficha-name">${c.nome}</div>
+                    <div class="ficha-meta">
+                        ${c.cpf_cnpj?'<span>📋 '+c.cpf_cnpj+'</span>':''}
+                        ${c.cidade?'<span>📍 '+c.cidade+(c.uf?'/'+c.uf:'')+'</span>':''}
+                        ${c.telefone?'<span>📞 '+c.telefone+'</span>':''}
+                        ${c.email?'<span>✉️ '+c.email+'</span>':''}
+                        ${c.nascimento?'<span>🎂 '+fD(c.nascimento)+'</span>':''}
+                    </div>
+                </div>
+                <div class="ficha-stats">
+                    <div class="fstat"><div class="fstat-val" style="color:var(--blue-700)">${c.total_apolices}</div><div class="fstat-label">Apólices</div></div>
+                    <div class="fstat"><div class="fstat-val" style="color:var(--green-600)">${ativas}</div><div class="fstat-label">Vigentes</div></div>
+                    <div class="fstat"><div class="fstat-val" style="color:var(--gold-600)">${R0(c.total_premio)}</div><div class="fstat-label">Prêmio Total</div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('apolices',this)">📋 Apólices <span class="badge">${c.total_apolices}</span></button>
+            <button class="tab-btn" onclick="switchTab('docs',this)" id="docsTabBtn">📁 Documentos <span class="badge" id="docsCount">…</span></button>
+        </div>
+
+        <div class="tab-content active" id="tab-apolices">
+        ${c.apolices.length===0?'<div class="ficha-card"><div class="empty">Nenhuma apólice</div></div>':
+        c.apolices.map((a,i)=>`
+            <div class="apo-card">
+                <div class="apo-head">
+                    <div class="apo-seg">${a.seguradora||'—'} <span class="apo-num">${a.numero||''}</span></div>
+                    <span class="pill ${a.status==='vigente'?'pill-green':'pill-muted'}">${a.status||'—'}</span>
+                </div>
+                <div class="apo-info">
+                    ${a.ramo?'<span>📋 '+a.ramo+'</span>':''}
+                    <span>📅 ${fD(a.vig_inicio)} → ${fD(a.vig_fim)}</span>
+                    ${a.premio?'<span>💰 '+R$(a.premio)+'</span>':''}
+                    ${a.produtor?'<span>👤 '+a.produtor.replace('SIER - ','')+'</span>':''}
+                </div>
+                ${a.parcelas.length?`
+                    <button class="parc-btn" onclick="this.nextElementSibling.classList.toggle('show');this.textContent=this.nextElementSibling.classList.contains('show')?'Ocultar parcelas ▴':'${a.parcelas.length} parcelas ▾'">
+                        ${a.parcelas.length} parcelas ▾
+                    </button>
+                    <div class="parc-list">
+                        <table>
+                            <thead><tr><th>Nº</th><th>Vencimento</th><th class="r">Valor</th><th>Endosso</th></tr></thead>
+                            <tbody>${a.parcelas.map(p=>`
+                                <tr><td class="mono">${p.num||'—'}</td><td>${fD(p.vencimento)}</td><td class="r mono">${R$(p.valor)}</td><td class="mono">${p.endosso||'—'}</td></tr>
+                            `).join('')}</tbody>
+                        </table>
+                    </div>
+                `:'<div style="margin-top:6px;font-size:11px;color:var(--text-4)">Sem parcelas registradas</div>'}
+            </div>
+        `).join('')}
+        </div>
+
+        <div class="tab-content" id="tab-docs">
+            <div class="docs-empty" id="docsLoading">Carregando documentos...</div>
+        </div>
+    `;
+    loadDocs(id);
+}
+
+function switchTab(tab, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + tab).classList.add('active');
+}
+
+function fmtSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(0) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+async function loadDocs(clienteId) {
+    const docsTab = document.getElementById('tab-docs');
+    const countBadge = document.getElementById('docsCount');
+    try {
+        const r = await fetch(`/api/documentos/cliente/${clienteId}`, { headers: H });
+        if (r.status === 401) { logout(); return; }
+        const data = await r.json();
+        const docs = data.docs || [];
+        countBadge.textContent = docs.length;
+        
+        if (!docs.length) {
+            docsTab.innerHTML = '<div class="docs-empty">📁 Nenhum documento encontrado para este cliente</div>';
+            return;
+        }
+        
+        docsTab.innerHTML = `
+            <div style="font-size:12px;color:var(--text-4);margin-bottom:12px">${docs.length} arquivo${docs.length>1?'s':''} • Pasta: ${data.pasta}</div>
+            <div class="docs-grid">
+                ${docs.map(d => `
+                    <a class="doc-card" href="/api/documentos/download/${clienteId}/${encodeURIComponent(d.nome)}?token=${token}" target="_blank" title="${d.nome}">
+                        <div class="doc-icon">${d.icone}</div>
+                        <div class="doc-info">
+                            <div class="doc-name">${d.nome}</div>
+                            <div class="doc-meta">
+                                <span class="doc-tipo">${d.tipo}</span>
+                                <span>${fmtSize(d.tamanho)}</span>
+                            </div>
+                        </div>
+                        <div class="doc-dl">⬇</div>
+                    </a>
+                `).join('')}
+            </div>
+        `;
+    } catch (e) {
+        docsTab.innerHTML = '<div class="docs-empty">Erro ao carregar documentos</div>';
+        countBadge.textContent = '—';
+    }
+}
+
+route();
+</script>
+<script>
+function toggleMenu(){
+    var s=document.querySelector('.sidebar');
+    var o=document.querySelector('.sidebar-overlay');
+    if(s){s.classList.toggle('open')}
+    if(o){o.classList.toggle('show')}
+}
+function closeMenu(){
+    var s=document.querySelector('.sidebar');
+    var o=document.querySelector('.sidebar-overlay');
+    if(s){s.classList.remove('open')}
+    if(o){o.classList.remove('show')}
+}
+</script>
+<script src="/static/admin-check.js"></script>
+</body>
+</html>

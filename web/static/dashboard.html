@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vértice — Sierra Seguros</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..700;1,14..32,300..700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --bg:#f8f9fb;--card:#fff;--border:#eaecf0;--border-h:#d0d5dd;
+            --text:#101828;--text-2:#344054;--text-3:#667085;--text-4:#98a2b3;
+            --blue-900:#1a3a5c;--blue-700:#1a5276;--blue-600:#2471a3;--blue-500:#2980b9;
+            --blue-100:#dbeafe;--blue-50:#eff6ff;
+            --gold-600:#d97706;--gold-500:#f39c12;--gold-100:#fef3c7;--gold-50:#fffbeb;
+            --green-600:#059669;--green-500:#10b981;--green-100:#d1fae5;--green-50:#ecfdf5;
+            --red-500:#ef4444;--red-100:#fee2e2;
+            --purple-500:#8b5cf6;--purple-100:#ede9fe;
+            --radius:10px;--radius-lg:14px;
+            --shadow-sm:0 1px 2px rgba(0,0,0,.05);
+            --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+            --shadow-md:0 4px 6px -1px rgba(0,0,0,.08),0 2px 4px -2px rgba(0,0,0,.04);
+            --shadow-lg:0 10px 15px -3px rgba(0,0,0,.08),0 4px 6px -4px rgba(0,0,0,.04);
+            --transition:all .15s ease;
+        }
+        body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;min-height:100vh}
+
+        /* ═══ SIDEBAR ═══ */
+        .layout{display:flex;min-height:100vh}
+        .sidebar{
+            width:240px;background:#fff;border-right:1px solid var(--border);
+            padding:20px 0;display:flex;flex-direction:column;position:fixed;
+            top:0;left:0;bottom:0;z-index:50;
+        }
+        .sidebar-brand{padding:16px 20px 18px;border-bottom:1px solid var(--border);margin-bottom:8px;text-align:center}
+        .sidebar-brand img{height:38px;display:block;margin:0 auto 6px}
+        .sidebar-brand span{font-size:10px;color:var(--text-4);font-weight:600;letter-spacing:.8px;text-transform:uppercase;display:block}
+        .sidebar-nav{flex:1;padding:4px 8px}
+        .sidebar-nav a{
+            display:flex;align-items:center;gap:10px;padding:8px 12px;
+            border-radius:8px;color:var(--text-3);text-decoration:none;
+            font-size:13px;font-weight:500;transition:var(--transition);margin-bottom:2px;
+        }
+        .sidebar-nav a:hover{background:var(--blue-50);color:var(--blue-700)}
+        .sidebar-nav a.active{background:var(--blue-50);color:var(--blue-700);font-weight:600}
+        .sidebar-nav a .icon{width:18px;text-align:center;font-size:15px}
+        .sidebar-nav .section{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;padding:16px 12px 6px}
+        .sidebar-footer{padding:12px 20px;border-top:1px solid var(--border)}
+        .sidebar-user{font-size:12px;color:var(--text-3)}
+        .sidebar-user strong{color:var(--text);font-weight:600}
+        .btn-logout{background:none;border:none;color:var(--text-4);font-size:11px;cursor:pointer;padding:4px 0;font-family:inherit}
+        .btn-logout:hover{color:var(--red-500)}
+
+        .main{margin-left:240px;flex:1;min-width:0}
+
+        @media(max-width:768px){
+            .sidebar{transform:translateX(-100%)}
+            .main{margin-left:0}
+        }
+
+        /* ═══ HEADER ═══ */
+        .header{
+            padding:24px 32px 0;display:flex;align-items:flex-end;
+            justify-content:space-between;flex-wrap:wrap;gap:12px;
+        }
+        .header h2{font-size:22px;font-weight:700;color:var(--text);letter-spacing:-.5px}
+        .header p{font-size:13px;color:var(--text-3);margin-top:2px}
+        .header-right{display:flex;gap:8px;align-items:center}
+        .badge-live{
+            display:inline-flex;align-items:center;gap:5px;
+            font-size:11px;font-weight:600;color:var(--green-600);
+            background:var(--green-50);border:1px solid var(--green-100);
+            padding:4px 10px;border-radius:20px;
+        }
+        .badge-live::before{content:'';width:6px;height:6px;background:var(--green-500);border-radius:50%;animation:pulse-dot 2s infinite}
+        @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.4}}
+
+        /* ═══ CONTENT ═══ */
+        .content{padding:20px 32px 40px}
+
+        /* ═══ KPI STRIP ═══ */
+        .kpi-strip{
+            display:grid;grid-template-columns:repeat(5,1fr);gap:1px;
+            background:var(--border);border-radius:var(--radius-lg);
+            overflow:hidden;box-shadow:var(--shadow);margin-bottom:24px;
+        }
+        .kpi-item{background:#fff;padding:20px 22px}
+        .kpi-item:first-child{border-radius:var(--radius-lg) 0 0 var(--radius-lg)}
+        .kpi-item:last-child{border-radius:0 var(--radius-lg) var(--radius-lg) 0}
+        .kpi-label{font-size:11px;font-weight:500;color:var(--text-4);text-transform:uppercase;letter-spacing:.5px}
+        .kpi-val{font-size:26px;font-weight:700;letter-spacing:-.8px;line-height:1.2;margin-top:4px}
+        .kpi-sub{font-size:11px;color:var(--text-4);margin-top:4px;display:flex;align-items:center;gap:4px}
+        .kpi-up{color:var(--green-600)}
+        .kpi-down{color:var(--red-500)}
+        @media(max-width:1100px){.kpi-strip{grid-template-columns:repeat(3,1fr)}.kpi-item:first-child,.kpi-item:last-child{border-radius:0}}
+        @media(max-width:640px){.kpi-strip{grid-template-columns:repeat(2,1fr)}}
+
+        /* ═══ GRID ═══ */
+        .grid{display:grid;gap:20px;margin-bottom:20px}
+        .g2{grid-template-columns:1fr 1fr}
+        .g3{grid-template-columns:1fr 1fr 1fr}
+        .g23{grid-template-columns:2fr 1fr}
+        @media(max-width:900px){.g2,.g3,.g23{grid-template-columns:1fr}}
+
+        /* ═══ CARD ═══ */
+        .card{
+            background:var(--card);border:1px solid var(--border);
+            border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);
+            transition:box-shadow .2s;overflow:hidden;
+        }
+        .card:hover{box-shadow:var(--shadow)}
+        .card-h{
+            padding:16px 20px;border-bottom:1px solid var(--border);
+            display:flex;align-items:center;justify-content:space-between;
+        }
+        .card-title{font-size:13px;font-weight:600;color:var(--text)}
+        .card-badge{font-size:11px;color:var(--text-4);font-weight:500}
+        .card-body{padding:16px 20px}
+        .card-body-flush{padding:0}
+
+        /* ═══ CHART ═══ */
+        .chart-wrap{padding:16px 20px}
+        .chart-wrap canvas{width:100%!important}
+
+        /* ═══ TABLE ═══ */
+        table{width:100%;border-collapse:collapse}
+        th{font-size:11px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.4px;padding:10px 16px;text-align:left;background:#fafbfc;border-bottom:1px solid var(--border)}
+        td{padding:10px 16px;font-size:13px;border-bottom:1px solid #f3f4f6}
+        tr:last-child td{border-bottom:none}
+        tr:hover td{background:#f9fafb}
+        .r{text-align:right}
+        .mono{font-variant-numeric:tabular-nums;font-feature-settings:'tnum'}
+        a.link{color:var(--blue-600);text-decoration:none;font-weight:500}
+        a.link:hover{color:var(--blue-700);text-decoration:underline}
+
+        /* ═══ PILL ═══ */
+        .pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600}
+        .pill-green{background:var(--green-100);color:var(--green-600)}
+        .pill-gold{background:var(--gold-100);color:var(--gold-600)}
+        .pill-blue{background:var(--blue-100);color:var(--blue-600)}
+        .pill-red{background:var(--red-100);color:var(--red-500)}
+
+        /* ═══ BARS ═══ */
+        .bar-item{padding:6px 0}
+        .bar-meta{display:flex;justify-content:space-between;margin-bottom:4px}
+        .bar-name{font-size:12px;font-weight:500;color:var(--text-2)}
+        .bar-val{font-size:11px;color:var(--text-4);font-variant-numeric:tabular-nums}
+        .bar-track{height:6px;background:#f3f4f6;border-radius:3px;overflow:hidden}
+        .bar-fill{height:100%;border-radius:3px;transition:width .8s cubic-bezier(.4,0,.2,1)}
+
+        /* ═══ EMPTY ═══ */
+        .empty{text-align:center;color:var(--text-4);font-size:13px;padding:32px}
+
+        /* ═══ DRILL MODAL ═══ */
+        .drill-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto}
+        .drill-modal{background:#fff;border-radius:16px;max-width:900px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:drillIn .2s ease}
+        @keyframes drillIn{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+        .drill-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+        .drill-header h3{font-size:18px;font-weight:700;color:var(--text)}
+        .drill-close{background:none;border:none;font-size:22px;color:var(--text-4);cursor:pointer;padding:4px 8px;border-radius:6px}
+        .drill-close:hover{background:var(--blue-50);color:var(--text)}
+        .drill-body{padding:24px}
+        .drill-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-radius:10px;overflow:hidden;margin-bottom:20px}
+        .drill-kpi{background:#fff;padding:14px 16px;text-align:center}
+        .drill-kpi .dk-label{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.5px}
+        .drill-kpi .dk-val{font-size:22px;font-weight:700;color:var(--text);margin-top:2px}
+        .drill-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+        .drill-section{background:#fafbfc;border:1px solid var(--border);border-radius:10px;padding:16px}
+        .drill-section h4{font-size:12px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+        .drill-chart{margin-bottom:16px}
+        .drill-chart canvas{width:100%!important}
+        @media(max-width:768px){.drill-kpis{grid-template-columns:repeat(2,1fr)}.drill-grid{grid-template-columns:1fr}.drill-modal{margin:10px}}
+    </style>
+    <style>
+        .mobile-nav{display:none;position:fixed;top:0;left:0;right:0;height:52px;background:#154360;z-index:200;align-items:center;padding:0 16px;gap:12px}
+        .mobile-nav h2{color:#fff;font-size:14px;font-weight:700;flex:1}
+        .mobile-nav .ham{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:8px}
+        .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150}
+        @media(max-width:768px){
+            .mobile-nav{display:flex!important}
+            .main,.content,[class*="main"]{padding-top:60px!important}
+            .sidebar{transform:translateX(-100%);transition:transform .2s}
+            .sidebar.open{transform:translateX(0)!important;display:flex!important;z-index:160}
+            .sidebar-overlay.show{display:block}
+        }
+    </style>
+
+    <style>
+        @media(max-width:768px){
+            .main,.content{margin-left:0!important;padding:60px 12px 12px!important}
+            .header,.page-header{flex-direction:column;gap:8px;align-items:flex-start!important}
+            .header h1,.page-header h1{font-size:18px}
+            .kpi-strip,.stats-grid,.kpi-row{grid-template-columns:repeat(2,1fr)!important;gap:8px}
+            .card,.glass{overflow-x:auto;-webkit-overflow-scrolling:touch}
+            table{min-width:600px}
+            .g2,.g3,.g23,.grid-2,.grid-3{grid-template-columns:1fr!important}
+            .search-bar{flex-direction:column}
+            .search-bar input{max-width:100%!important}
+            .filter-bar{flex-wrap:wrap}
+        }
+    </style>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <div class="mobile-nav">
+        <button class="ham" onclick="toggleMenu()">☰</button>
+        <h2>Sierra Seguros</h2>
+    </div>
+    <div class="sidebar-overlay" onclick="closeMenu()"></div>
+    <div class="layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-brand"><img src="/static/logo-sierra-full.png" alt="Sierra — Soluções em Seguros"><span>Vértice</span></div>
+            <nav class="sidebar-nav">
+                <div class="section">Principal</div>
+                <a href="/analytics" class="active"><span class="icon">📊</span> Painel Gerencial</a>
+                <a href="/dashboard"><span class="icon">🏠</span> Dashboard</a>
+                <a href="/cotacoes"><span class="icon">🧮</span> Nova Cotação</a>
+                <a href="/clientes"><span class="icon">👥</span> Clientes</a>
+                <a href="/apolices"><span class="icon">📋</span> Apólices</a>
+                <a href="/renovacoes"><span class="icon">🔄</span> Renovações</a>
+                <div class="section">Ferramentas</div>
+                <a href="/conversor"><span class="icon">📄</span> Conversor PDF</a>
+                <div class="section">Administração</div>
+                <a href="/seguranca"><span class="icon">🔒</span> Segurança</a>
+                        <div class="section" id="adminSection" style="display:none">Administração</div>
+            <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+        </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-user"><strong id="sideUser"></strong><br>Sierra Seguros</div>
+                <button class="btn-logout" onclick="logout()">Sair →</button>
+            </div>
+        </aside>
+
+        <!-- Main -->
+        <div class="main">
+            <div class="header">
+                <div>
+                    <h2>Painel Gerencial</h2>
+                    <p>Visão consolidada da carteira Sierra Seguros</p>
+                </div>
+                <div class="header-right">
+                    <span class="badge-live">Dados atualizados</span>
+                </div>
+            </div>
+
+            <div class="content">
+                <!-- KPIs -->
+                <div class="kpi-strip">
+                    <div class="kpi-item">
+                        <div class="kpi-label">Apólices</div>
+                        <div class="kpi-val" id="kTotal" style="color:var(--text)">—</div>
+                        <div class="kpi-sub" id="kTotalSub"></div>
+                    </div>
+                    <div class="kpi-item">
+                        <div class="kpi-label">Vigentes</div>
+                        <div class="kpi-val" id="kAtivas" style="color:var(--green-600)">—</div>
+                        <div class="kpi-sub" id="kAtivasSub"></div>
+                    </div>
+                    <div class="kpi-item">
+                        <div class="kpi-label">Clientes</div>
+                        <div class="kpi-val" id="kClientes" style="color:var(--blue-600)">—</div>
+                    </div>
+                    <div class="kpi-item">
+                        <div class="kpi-label">Prêmio Acumulado</div>
+                        <div class="kpi-val" id="kPremio" style="color:var(--text)">—</div>
+                        <div class="kpi-sub">histórico completo</div>
+                    </div>
+                    <div class="kpi-item">
+                        <div class="kpi-label">A Receber</div>
+                        <div class="kpi-val" id="kReceber" style="color:var(--gold-600)">—</div>
+                        <div class="kpi-sub">parcelas futuras</div>
+                    </div>
+                </div>
+
+                <!-- Row 1: Faturamento + Parcelas -->
+                <div class="grid g2">
+                    <div class="card">
+                        <div class="card-h"><span class="card-title">Faturamento Anual</span><span class="card-badge">Por ano de vencimento</span></div>
+                        <div class="chart-wrap"><canvas id="cFat" height="190"></canvas></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-h"><span class="card-title">Receita Futura</span><span class="card-badge">Próximos 12 meses</span></div>
+                        <div class="chart-wrap"><canvas id="cParc" height="190"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Row 2: Seguradoras + Ramos + Produtores -->
+                <div class="grid g2">
+                    <div class="card">
+                        <div class="card-h"><span class="card-title">Seguradoras</span><span class="card-badge">por volume</span></div>
+                        <div class="card-body" id="segBars"></div>
+                    </div>
+                </div>
+
+                <!-- Row 3: Ramos (grande) + Produtores -->
+                <div class="grid g2">
+                    <div class="card">
+                        <div class="card-h"><span class="card-title">Mix por Ramo</span><span class="card-badge">distribuição da carteira</span></div>
+                        <div class="chart-wrap"><canvas id="cRamo" height="280"></canvas></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-h"><span class="card-title">Produtores</span><span class="card-badge">por prêmio</span></div>
+                        <div class="card-body" id="prodBars"></div>
+                    </div>
+                </div>
+
+                <!-- Row 3: Renovações + Top Clientes -->
+                <div class="grid g23">
+                    <div class="card">
+                        <div class="card-h"><span class="card-title">Renovações Próximas</span><span class="card-badge pill pill-gold" id="renovCount">60 dias</span></div>
+                        <div class="card-body-flush">
+                            <table id="tRenov">
+                                <thead><tr><th>Cliente</th><th>Seguradora</th><th>Ramo</th><th>Vencimento</th><th class="r">Prêmio</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-h"><span class="card-title">Top Clientes</span><span class="card-badge">por prêmio</span></div>
+                        <div class="card-body-flush">
+                            <table id="tCli">
+                                <thead><tr><th>Cliente</th><th class="r">Nº</th><th class="r">Prêmio</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Drill-down modal -->
+<div id="drillBg" class="drill-bg" style="display:none" onclick="if(event.target===this)closeDrill()">
+    <div class="drill-modal">
+        <div class="drill-header">
+            <h3 id="drillTitle">Faturamento 2025</h3>
+            <button class="drill-close" onclick="closeDrill()">✕</button>
+        </div>
+        <div class="drill-body" id="drillBody">
+            <div class="empty">Carregando...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+const token = localStorage.getItem('sierra_token');
+if (!token) window.location.href = '/';
+const user = JSON.parse(localStorage.getItem('sierra_user')||'{}');
+document.getElementById('sideUser').textContent = user.nome || '';
+
+const H = {'Authorization':`Bearer ${token}`};
+const fmt = n => n.toLocaleString('pt-BR');
+const R$ = n => 'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
+const Rk = n => n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?Math.round(n/1e3)+'k':fmt(n);
+const fmtD = d => d?d.split('-').reverse().join('/') : '—';
+const PAL = ['#1a5276','#2980b9','#3498db','#5dade2','#85c1e9','#aed6f1','#d4e6f1','#17a2b8','#138d75','#1abc9c','#27ae60','#2ecc71','#f39c12','#e67e22','#e74c3c'];
+
+function logout(){localStorage.clear();window.location.href='/'}
+async function api(p){const r=await fetch('/api/analytics/'+p,{headers:H});if(r.status===401){logout();return null}return r.json()}
+
+Chart.defaults.font.family="'Inter',system-ui,sans-serif";
+Chart.defaults.font.size=11;
+Chart.defaults.color='#98a2b3';
+
+(async()=>{
+    // KPIs
+    const ov=await api('overview');if(!ov)return;
+    document.getElementById('kTotal').textContent=fmt(ov.total_apolices);
+    document.getElementById('kAtivas').textContent=fmt(ov.apolices_ativas);
+    document.getElementById('kAtivasSub').innerHTML=`<span class="kpi-up">${(ov.apolices_ativas/ov.total_apolices*100).toFixed(1)}%</span> do total`;
+    document.getElementById('kClientes').textContent=fmt(ov.total_clientes);
+    document.getElementById('kPremio').textContent=R$(ov.premio_total);
+    document.getElementById('kReceber').textContent=R$(ov.a_receber);
+
+    // Faturamento
+    const fat=await api('faturamento-anual');
+    const maxFat=Math.max(...fat.map(f=>f.total));
+    const fatChart=new Chart(document.getElementById('cFat'),{
+        type:'bar',
+        data:{
+            labels:fat.map(f=>f.ano),
+            datasets:[{
+                data:fat.map(f=>f.total),
+                backgroundColor:fat.map(f=>f.total===maxFat?'#1a5276':'#d4e6f1'),
+                hoverBackgroundColor:'#2980b9',
+                borderRadius:5,borderSkipped:false,
+                barPercentage:.7,categoryPercentage:.8,
+            }]
+        },
+        options:{
+            responsive:true,
+            onClick:(e,els)=>{if(els.length){const ano=fat[els[0].index].ano;window.location.href='/analise?ano='+ano}},
+            plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>R$(c.raw)+' — clique para detalhar'}}},
+            scales:{
+                x:{grid:{display:false},border:{display:false},ticks:{font:{weight:500}}},
+                y:{grid:{color:'#f3f4f6',drawTicks:false},border:{display:false},ticks:{callback:v=>Rk(v),padding:8}}
+            },
+            onHover:(e,els)=>{e.native.target.style.cursor=els.length?'pointer':'default'}
+        }
+    });
+
+    // Parcelas futuras
+    const parc=await api('parcelas-futuras');
+    new Chart(document.getElementById('cParc'),{
+        type:'line',
+        data:{
+            labels:parc.map(p=>{const[y,m]=p.mes.split('-');return['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][+m-1]+'/'+y.slice(2)}),
+            datasets:[{
+                data:parc.map(p=>p.total),
+                borderColor:'#f39c12',backgroundColor:'rgba(243,156,18,.08)',
+                fill:true,tension:.4,borderWidth:2,
+                pointBackgroundColor:'#fff',pointBorderColor:'#f39c12',
+                pointBorderWidth:2,pointRadius:4,pointHoverRadius:6,
+            }]
+        },
+        options:{
+            responsive:true,
+            plugins:{legend:{display:false},tooltip:{callbacks:{
+                label:c=>R$(c.raw),afterLabel:c=>parc[c.dataIndex].quantidade+' parcelas'
+            }}},
+            scales:{
+                x:{grid:{display:false},border:{display:false}},
+                y:{grid:{color:'#f3f4f6',drawTicks:false},border:{display:false},ticks:{callback:v=>Rk(v),padding:8}}
+            }
+        }
+    });
+
+    // Seguradoras
+    const segs=await api('seguradoras');
+    const mx=Math.max(...segs.map(s=>s.quantidade));
+    document.getElementById('segBars').innerHTML=segs.slice(0,8).map((s,i)=>`
+        <div class="bar-item" style="cursor:pointer" onclick="location.href='/analise?seguradora='+encodeURIComponent('${s.seguradora.replace(/'/g,"\\'")}')">
+            <div class="bar-meta"><span class="bar-name">${s.seguradora}</span><span class="bar-val">${s.quantidade} · ${Rk(s.premio)}</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:${(s.quantidade/mx*100).toFixed(0)}%;background:${PAL[i]}"></div></div>
+        </div>
+    `).join('');
+
+    // Ramos
+    const ramos=await api('ramos');
+    const mr=ramos.filter(r=>r.quantidade>=15);
+    const oq=ramos.filter(r=>r.quantidade<15).reduce((a,r)=>a+r.quantidade,0);
+    if(oq>0)mr.push({ramo:'Outros',quantidade:oq});
+    new Chart(document.getElementById('cRamo'),{
+        type:'doughnut',
+        data:{
+            labels:mr.map(r=>r.ramo),
+            datasets:[{data:mr.map(r=>r.quantidade),backgroundColor:PAL.slice(0,mr.length),borderColor:'#fff',borderWidth:2.5,hoverOffset:4}]
+        },
+        options:{
+            responsive:true,cutout:'62%',
+            plugins:{
+                legend:{position:'bottom',labels:{padding:8,usePointStyle:true,pointStyle:'circle',font:{size:11,weight:500}}},
+                tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw} apólices`}}
+            }
+        }
+    });
+
+    // Produtores
+    const prods=await api('produtores');
+    const mp=Math.max(...prods.map(p=>p.premio));
+    document.getElementById('prodBars').innerHTML=prods.slice(0,7).map((p,i)=>`
+        <div class="bar-item" style="cursor:pointer" onclick="location.href='/analise?produtor='+encodeURIComponent('${p.nome.replace(/'/g,"\\'")}')">
+            <div class="bar-meta"><span class="bar-name">${p.nome.length>25?p.nome.substring(0,25)+'…':p.nome}</span><span class="bar-val">${Rk(p.premio)} · ${p.quantidade}</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:${(p.premio/mp*100).toFixed(0)}%;background:${PAL[i+3]}"></div></div>
+        </div>
+    `).join('');
+
+    // Renovações (clicável)
+    const ren=await api('renovacoes-detalhe?dias=60');
+    document.getElementById('renovCount').textContent=ren.length+' apólices · 60 dias';
+    const tbody=document.querySelector('#tRenov tbody');
+    if(!ren.length){
+        tbody.innerHTML='<tr><td colspan="5" class="empty">Nenhuma renovação nos próximos 60 dias</td></tr>';
+    } else {
+        tbody.innerHTML=ren.slice(0,15).map(r=>`
+            <tr>
+                <td><a class="link" href="/clientes#cliente/${r.cliente_id}">${r.cliente.length>24?r.cliente.substring(0,24)+'…':r.cliente}</a></td>
+                <td>${r.seguradora||'—'}</td>
+                <td><span class="pill pill-blue">${r.ramo||'—'}</span></td>
+                <td class="mono">${fmtD(r.vencimento)}</td>
+                <td class="r mono">${R$(r.premio)}</td>
+            </tr>
+        `).join('');
+        if(ren.length>15) tbody.innerHTML+=`<tr><td colspan="5" style="text-align:center;padding:12px"><a class="link" href="/clientes">Ver todos ${ren.length} →</a></td></tr>`;
+    }
+
+    // Top clientes
+    const cli=await api('top-clientes');
+    document.querySelector('#tCli tbody').innerHTML=cli.slice(0,10).map(c=>`
+        <tr>
+            <td><a class="link" href="/clientes#cliente/${c.id}">${c.nome.length>20?c.nome.substring(0,20)+'…':c.nome}</a></td>
+            <td class="r mono">${c.apolices}</td>
+            <td class="r mono">${R$(c.premio)}</td>
+        </tr>
+    `).join('');
+
+})();
+</script>
+<script>
+let drillCharts=[];
+function closeDrill(){
+    document.getElementById('drillBg').style.display='none';
+    drillCharts.forEach(c=>c.destroy());
+    drillCharts=[];
+}
+async function openDrill(ano){
+    document.getElementById('drillTitle').textContent=`Faturamento ${ano} — Visão Detalhada`;
+    document.getElementById('drillBody').innerHTML='<div class="empty">Carregando dados de '+ano+'...</div>';
+    document.getElementById('drillBg').style.display='flex';
+
+    const r=await fetch(`/api/analytics/faturamento-detalhe/${ano}`,{headers:H});
+    if(r.status===401){logout();return}
+    const d=await r.json();
+    const t=d.totais;
+
+    document.getElementById('drillBody').innerHTML=`
+        <div class="drill-kpis">
+            <div class="drill-kpi"><div class="dk-label">Faturamento</div><div class="dk-val" style="color:var(--blue-700)">${R$(t.total)}</div></div>
+            <div class="drill-kpi"><div class="dk-label">Parcelas</div><div class="dk-val">${fmt(t.parcelas)}</div></div>
+            <div class="drill-kpi"><div class="dk-label">Apólices</div><div class="dk-val" style="color:var(--green-600)">${fmt(t.apolices)}</div></div>
+            <div class="drill-kpi"><div class="dk-label">Clientes</div><div class="dk-val" style="color:var(--blue-600)">${fmt(t.clientes)}</div></div>
+        </div>
+        <div class="drill-chart"><canvas id="drillMensal" height="160"></canvas></div>
+        <div class="drill-grid">
+            <div class="drill-section"><h4>📊 Por Seguradora</h4><div id="drillSeg"></div></div>
+            <div class="drill-section"><h4>📋 Por Ramo</h4><div id="drillRamo"></div></div>
+        </div>
+        <div style="margin-top:16px">
+            <div class="drill-section"><h4>👤 Por Produtor</h4><div id="drillProd"></div></div>
+        </div>
+    `;
+
+    // Gráfico mensal
+    const MESES_FULL=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const mesData=new Array(12).fill(0);
+    d.mensal.forEach(m=>{mesData[m.mes-1]=m.total});
+    const maxM=Math.max(...mesData);
+    drillCharts.push(new Chart(document.getElementById('drillMensal'),{
+        type:'bar',
+        data:{
+            labels:MESES_FULL,
+            datasets:[{
+                data:mesData,
+                backgroundColor:mesData.map(v=>v===maxM?'#1a5276':'#85c1e9'),
+                borderRadius:4,borderSkipped:false,
+                barPercentage:.65,categoryPercentage:.85,
+            }]
+        },
+        options:{
+            responsive:true,
+            plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>R$(c.raw)}}},
+            scales:{
+                x:{grid:{display:false},border:{display:false},ticks:{font:{size:10}}},
+                y:{grid:{color:'#f3f4f6'},border:{display:false},ticks:{callback:v=>Rk(v),padding:6}}
+            }
+        }
+    }));
+
+    // Barras seguradoras
+    const mxS=Math.max(...d.seguradoras.map(s=>s.total));
+    document.getElementById('drillSeg').innerHTML=d.seguradoras.map((s,i)=>`
+        <div class="bar-item">
+            <div class="bar-meta"><span class="bar-name">${s.nome}</span><span class="bar-val">${R$(s.total)} · ${s.apolices} ap</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:${(s.total/mxS*100).toFixed(0)}%;background:${PAL[i]}"></div></div>
+        </div>
+    `).join('')||'<div class="empty">Sem dados</div>';
+
+    // Barras ramos
+    const mxR=Math.max(...d.ramos.map(r=>r.total));
+    document.getElementById('drillRamo').innerHTML=d.ramos.map((r,i)=>`
+        <div class="bar-item">
+            <div class="bar-meta"><span class="bar-name">${r.nome}</span><span class="bar-val">${R$(r.total)} · ${r.apolices} ap</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:${(r.total/mxR*100).toFixed(0)}%;background:${PAL[i+4]}"></div></div>
+        </div>
+    `).join('')||'<div class="empty">Sem dados</div>';
+
+    // Barras produtores
+    const mxP=Math.max(...d.produtores.map(p=>p.total));
+    document.getElementById('drillProd').innerHTML=d.produtores.map((p,i)=>`
+        <div class="bar-item">
+            <div class="bar-meta"><span class="bar-name">${p.nome.length>30?p.nome.substring(0,30)+'…':p.nome}</span><span class="bar-val">${R$(p.total)} · ${p.apolices} ap</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:${(p.total/mxP*100).toFixed(0)}%;background:${PAL[i+2]}"></div></div>
+        </div>
+    `).join('')||'<div class="empty">Sem dados</div>';
+}
+
+function toggleMenu(){
+    var s=document.querySelector('.sidebar');
+    var o=document.querySelector('.sidebar-overlay');
+    if(s){s.classList.toggle('open')}
+    if(o){o.classList.toggle('show')}
+}
+function closeMenu(){
+    var s=document.querySelector('.sidebar');
+    var o=document.querySelector('.sidebar-overlay');
+    if(s){s.classList.remove('open')}
+    if(o){o.classList.remove('show')}
+}
+</script>
+<script src="/static/admin-check.js"></script>
+</body>
+</html>

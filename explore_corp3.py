@@ -1,141 +1,160 @@
-"""Explora o Corp - 3 etapas de login."""
-import asyncio
+"""
+Explorador Corp v3 — login corrigido + exploração de menus.
+"""
+
+from playwright.sync_api import sync_playwright
+import time
 import os
-from playwright.async_api import async_playwright
 
-SCREENSHOTS = "/root/sierra/screenshots"
-os.makedirs(SCREENSHOTS, exist_ok=True)
+DIR = "/root/sierra/corp_screenshots3"
+os.makedirs(DIR, exist_ok=True)
 
-async def main():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page(viewport={"width": 1280, "height": 900})
-        
-        # Etapa 1 - Login Citrix
-        print("=== ETAPA 1: Login Citrix ===")
-        await page.goto("https://corpnuvem-14.ddns.net/")
-        await page.wait_for_load_state("networkidle")
-        await asyncio.sleep(3)
-        
-        await page.fill('#Editbox1', 'sierra')
-        await page.fill('#Editbox2', '#2025Sierra10#')
-        await page.click('#buttonLogOn')
-        await asyncio.sleep(5)
-        
-        await page.screenshot(path=f"{SCREENSHOTS}/corp3_01.png")
-        print(f"URL: {page.url}")
-        
-        # Etapa 2 - Clique para acessar (vai abrir segunda tela de login)
-        print("\n=== ETAPA 2: Clique para acessar ===")
-        try:
-            await page.click('text=Clique para acessar', timeout=5000)
-            await asyncio.sleep(5)
-        except:
-            # Try any clickable element
-            pass
-        
-        await page.screenshot(path=f"{SCREENSHOTS}/corp3_02.png")
-        print(f"URL: {page.url}")
-        
-        # Check all frames (might be iframe)
-        frames = page.frames
-        print(f"Frames: {len(frames)}")
-        for i, frame in enumerate(frames):
-            print(f"  Frame {i}: {frame.url}")
-            inputs = await frame.query_selector_all("input")
-            if inputs:
-                print(f"    Has {len(inputs)} inputs")
-                for inp in inputs:
-                    itype = await inp.get_attribute("type")
-                    iid = await inp.get_attribute("id")
-                    iname = await inp.get_attribute("name")
-                    print(f"    input: type={itype} id={iid} name={iname}")
-        
-        # Try filling login on any frame that has inputs
-        for frame in frames:
-            inputs = await frame.query_selector_all("input")
-            user_inputs = []
-            pass_inputs = []
-            for inp in inputs:
-                itype = await inp.get_attribute("type")
-                if itype == "password":
-                    pass_inputs.append(inp)
-                elif itype in ["text", None]:
-                    try:
-                        vis = await inp.is_visible()
-                        if vis:
-                            user_inputs.append(inp)
-                    except:
-                        pass
-            
-            if user_inputs and pass_inputs:
-                print(f"\n=== ETAPA 2b: Login Corp (sierra/sierra@seg0418) ===")
-                await user_inputs[0].fill("sierra")
-                await pass_inputs[0].fill("sierra@seg0418")
-                
-                submit = await frame.query_selector("button, input[type='submit']")
-                if submit:
-                    await submit.click()
-                else:
-                    await pass_inputs[0].press("Enter")
-                
-                await asyncio.sleep(8)
-                await page.screenshot(path=f"{SCREENSHOTS}/corp3_03.png")
-                print(f"URL: {page.url}")
-                
-                # Check for another login (AMANDA)
-                for frame2 in page.frames:
-                    inputs2 = await frame2.query_selector_all("input")
-                    user2 = []
-                    pass2 = []
-                    for inp in inputs2:
-                        itype = await inp.get_attribute("type")
-                        if itype == "password":
-                            pass2.append(inp)
-                        elif itype in ["text", None]:
-                            try:
-                                vis = await inp.is_visible()
-                                if vis:
-                                    user2.append(inp)
-                            except:
-                                pass
-                    
-                    if user2 and pass2:
-                        print(f"\n=== ETAPA 3: Login Amanda ===")
-                        await user2[0].fill("AMANDA")
-                        await pass2[0].fill("amanda001")
-                        
-                        submit2 = await frame2.query_selector("button, input[type='submit']")
-                        if submit2:
-                            await submit2.click()
-                        else:
-                            await pass2[0].press("Enter")
-                        
-                        await asyncio.sleep(8)
-                        await page.screenshot(path=f"{SCREENSHOTS}/corp3_04_inside.png")
-                        print(f"Inside URL: {page.url}")
-                        break
-                break
-        
-        # Final state
-        await page.screenshot(path=f"{SCREENSHOTS}/corp3_final.png")
-        
-        # Check for any app icons or content
-        all_elements = await page.query_selector_all("img, [class*='app'], [class*='icon'], a")
-        for el in all_elements[:20]:
-            tag = await el.evaluate("el => el.tagName")
-            text = ""
-            try:
-                text = (await el.inner_text()).strip()
-            except:
-                pass
-            src = await el.get_attribute("src") or await el.get_attribute("href") or ""
-            alt = await el.get_attribute("alt") or ""
-            cls = await el.get_attribute("class") or ""
-            if text or alt or src:
-                print(f"  {tag}: text='{text[:40]}' alt='{alt[:40]}' src='{src[:60]}' class='{cls[:40]}'")
-        
-        await browser.close()
-        print("\nDone!")
+def ss(page, name):
+    path = f"{DIR}/{name}.jpg"
+    page.screenshot(path=path, quality=90, type="jpeg")
+    print(f"📸 {name}")
 
-asyncio.run(main())
+def login_corp(ctx):
+    page = ctx.new_page()
+    page.goto('https://corpnuvem-14.ddns.net/software/html5.html', timeout=30000, wait_until='networkidle')
+    page.fill('#Editbox1', 'sierra')
+    page.fill('#Editbox2', 'sierr@seg0418')
+    page.click('#buttonLogOn')
+    print("✅ Login portal")
+    time.sleep(10)
+    
+    with ctx.expect_page(timeout=20000) as npi:
+        page.click('text=Sierra')
+    rdp = npi.value
+    print("✅ Aba RDP")
+    time.sleep(25)
+    ss(rdp, "00_rdp_login")
+    
+    # O login Corp tem campos no centro da tela
+    # Da primeira vez funcionou com x=700, y=400 e Tab
+    # Dessa vez, preciso mapear melhor os campos
+    # Vamos clicar no campo de usuario e digitar
+    
+    # Campo Usuário - centro-direita da janela de login
+    # Na primeira run bem-sucedida, cliquei em (700, 400) e funcionou
+    # Vamos primeiro limpar o campo e digitar AMANDA
+    rdp.mouse.click(730, 395)
+    time.sleep(0.5)
+    rdp.keyboard.press('Control+a')
+    time.sleep(0.2)
+    rdp.keyboard.type('AMANDA', delay=80)
+    time.sleep(0.5)
+    
+    # Agora CLICAR diretamente no campo de senha (abaixo do usuario)
+    rdp.mouse.click(730, 435)
+    time.sleep(0.5)
+    rdp.keyboard.press('Control+a')
+    time.sleep(0.2)
+    rdp.keyboard.type('amanda001', delay=80)
+    time.sleep(0.5)
+    
+    ss(rdp, "01_login_preenchido")
+    
+    # Clicar no botão Entrar (abaixo dos campos)
+    rdp.mouse.click(700, 480)
+    time.sleep(2)
+    
+    # Se não clicou no botão, tenta Enter
+    rdp.keyboard.press('Enter')
+    print("✅ Tentando login Corp...")
+    time.sleep(15)
+    ss(rdp, "02_pos_login")
+    
+    return rdp
+
+def main():
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        ctx = browser.new_context(viewport={'width': 1280, 'height': 900})
+        rdp = login_corp(ctx)
+        
+        # Verifica se logou
+        time.sleep(5)
+        ss(rdp, "03_verificacao")
+        
+        # Tenta abrir menus clicando na barra de menu
+        # Na home logada, a barra tem: Arquivos | Movimentos | Consultas | ...
+        # Preciso achar a posição Y correta da barra de menus
+        
+        # Vamos tentar várias posições Y para a barra de menus
+        print("\n=== Mapeando barra de menus ===")
+        for y in [8, 12, 16, 20, 25]:
+            rdp.mouse.click(35, y)
+            time.sleep(1.5)
+            ss(rdp, f"menu_y{y}")
+            rdp.keyboard.press('Escape')
+            time.sleep(0.5)
+        
+        # Tenta navegar pelo menu com Alt+letra ou F10
+        print("\n=== ALT + teclas ===")
+        
+        # Alt+F10 ativa a barra de menus em muitos apps Windows
+        rdp.keyboard.press('F10')
+        time.sleep(1)
+        ss(rdp, "10_f10")
+        
+        # Seta pra direita pra navegar
+        rdp.keyboard.press('ArrowDown')
+        time.sleep(1)
+        ss(rdp, "11_f10_down")
+        rdp.keyboard.press('Escape')
+        time.sleep(0.5)
+        
+        # Tenta Alt sozinho
+        rdp.keyboard.press('Alt')
+        time.sleep(1)
+        ss(rdp, "12_alt")
+        rdp.keyboard.press('ArrowDown')
+        time.sleep(1)
+        ss(rdp, "13_alt_down")
+        rdp.keyboard.press('Escape')
+        time.sleep(0.5)
+        
+        # Tenta clicar nos ícones da toolbar (que a gente JÁ SABE que funcionam)
+        # No primeiro round, clicar na toolbar abriu Cadastro de Clientes
+        print("\n=== Toolbar ícones (posições refinadas) ===")
+        
+        # Na primeira execução bem-sucedida:
+        # - icon pessoas (x=50, y=60) abriu Cadastro de Clientes
+        # Vamos clicar na mesma posição
+        
+        # Primeiro verificamos se estamos na home
+        ss(rdp, "20_antes_icones")
+        
+        # Ícone pessoas/cadastro (primeiro ícone grande da toolbar)
+        for y in [48, 52, 56, 60, 65]:
+            rdp.mouse.click(25, y)
+            time.sleep(2)
+            ss(rdp, f"icon_x25_y{y}")
+            rdp.keyboard.press('Escape')
+            time.sleep(1)
+        
+        # Tenta x=50
+        rdp.mouse.click(50, 55)
+        time.sleep(3)
+        ss(rdp, "25_icon_x50_y55")
+        
+        # Se cadastro de clientes abriu, vamos explorar
+        # Senão, tenta mais coordenadas
+        rdp.mouse.click(90, 55)
+        time.sleep(3)
+        ss(rdp, "26_icon_x90_y55")
+        
+        rdp.mouse.click(130, 55)
+        time.sleep(3)
+        ss(rdp, "27_icon_x130_y55")
+        
+        rdp.mouse.click(160, 55)
+        time.sleep(3)
+        ss(rdp, "28_icon_x160_y55")
+        
+        print("\n✅ Exploração v3 concluída!")
+        browser.close()
+
+if __name__ == "__main__":
+    main()

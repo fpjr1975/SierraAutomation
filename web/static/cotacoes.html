@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sierra — Nova Cotação</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#f8f9fb;--card:#fff;--border:#eaecf0;--text:#101828;--text-2:#344054;--text-3:#667085;--text-4:#98a2b3;--blue-700:#1a5276;--blue-600:#2471a3;--blue-500:#2980b9;--blue-100:#dbeafe;--blue-50:#eff6ff;--green-600:#059669;--green-100:#d1fae5;--green-50:#ecfdf5;--gold-600:#d97706;--gold-100:#fef3c7;--red-500:#ef4444;--red-100:#fee2e2;--radius-lg:14px;--shadow-sm:0 1px 2px rgba(0,0,0,.05);--shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04)}
+        body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;min-height:100vh}
+        .layout{display:flex;min-height:100vh}
+        .sidebar{width:240px;background:#fff;border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50}
+        .sidebar-brand{padding:16px 20px 18px;border-bottom:1px solid var(--border);margin-bottom:8px;text-align:center}
+        .sidebar-brand img{height:38px;display:block;margin:0 auto 6px}
+        .sidebar-brand span{font-size:10px;color:var(--text-4);font-weight:600;letter-spacing:.8px;text-transform:uppercase;display:block}
+        .sidebar-nav{flex:1;padding:4px 8px}
+        .sidebar-nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-3);text-decoration:none;font-size:13px;font-weight:500;transition:all .15s;margin-bottom:2px}
+        .sidebar-nav a:hover{background:var(--blue-50);color:var(--blue-700)}
+        .sidebar-nav a.active{background:var(--blue-50);color:var(--blue-700);font-weight:600}
+        .sidebar-nav a .icon{width:18px;text-align:center;font-size:15px}
+        .sidebar-nav .section{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;padding:16px 12px 6px}
+        .sidebar-footer{padding:12px 20px;border-top:1px solid var(--border)}
+        .sidebar-user{font-size:12px;color:var(--text-3)}.sidebar-user strong{color:var(--text);font-weight:600}
+        .btn-logout{background:none;border:none;color:var(--text-4);font-size:11px;cursor:pointer;padding:4px 0;font-family:inherit}
+        .main{margin-left:240px;flex:1;min-width:0}
+        @media(max-width:768px){.sidebar{transform:translateX(-100%)}.main{margin-left:0}}
+        .header{padding:24px 32px 0}
+        .header h2{font-size:22px;font-weight:700;letter-spacing:-.5px}
+        .header p{font-size:13px;color:var(--text-3);margin-top:2px}
+        .content{padding:20px 32px 40px;max-width:900px}
+
+        /* Steps */
+        .steps{display:flex;gap:8px;margin-bottom:24px}
+        .step{flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;text-align:center;font-size:12px;color:var(--text-4);font-weight:500;transition:all .2s}
+        .step.active{border-color:var(--blue-500);color:var(--blue-700);background:var(--blue-50);font-weight:600}
+        .step.done{border-color:var(--green-600);color:var(--green-600);background:var(--green-50)}
+        .step .step-num{font-size:16px;font-weight:700;display:block;margin-bottom:2px}
+
+        /* Upload zones */
+        .upload-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+        @media(max-width:600px){.upload-row{grid-template-columns:1fr}}
+        .upload-box{background:var(--card);border:2px dashed var(--border);border-radius:var(--radius-lg);padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;box-shadow:var(--shadow-sm)}
+        .upload-box:hover,.upload-box.over{border-color:var(--blue-500);background:var(--blue-50)}
+        .upload-box.done{border-color:var(--green-600);border-style:solid;background:var(--green-50)}
+        .upload-box .ub-icon{font-size:32px;margin-bottom:6px}
+        .upload-box h4{font-size:13px;font-weight:600;margin-bottom:2px}
+        .upload-box p{font-size:11px;color:var(--text-4)}
+        .upload-box .ub-result{font-size:11px;color:var(--green-600);margin-top:8px;font-weight:500}
+
+        /* CEP */
+        .cep-row{display:flex;gap:12px;align-items:flex-end;margin-bottom:24px}
+        .cep-field{flex:1;max-width:200px}
+        .cep-field label{display:block;font-size:11px;font-weight:600;color:var(--text-3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px}
+        .cep-field input{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;transition:border .15s}
+        .cep-field input:focus{border-color:var(--blue-500)}
+        .cep-result{font-size:12px;color:var(--text-3);padding-bottom:4px}
+
+        /* Buttons */
+        .btn{display:inline-flex;align-items:center;gap:6px;padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s;border:none}
+        .btn-primary{background:var(--blue-700);color:#fff}.btn-primary:hover{background:var(--blue-600)}
+        .btn-primary:disabled{opacity:.5;cursor:not-allowed}
+        .btn-outline{background:none;border:1px solid var(--border);color:var(--text-3)}.btn-outline:hover{border-color:var(--blue-500);color:var(--blue-600)}
+
+        /* Status */
+        .calc-status{margin:16px 0;display:none}
+        .calc-status.show{display:block}
+        .status-bar{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 20px;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:12px}
+        .spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--blue-500);border-radius:50%;animation:spin .8s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .status-text{font-size:13px;color:var(--text-2)}
+
+        /* Results table */
+        .results-section{display:none;margin-top:20px}
+        .results-section.show{display:block}
+        .results-table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow)}
+        .results-table th{background:var(--blue-50);padding:10px 14px;font-size:11px;font-weight:600;color:var(--blue-700);text-transform:uppercase;letter-spacing:.3px;text-align:left;border-bottom:1px solid var(--border)}
+        .results-table td{padding:10px 14px;font-size:13px;border-bottom:1px solid var(--border)}
+        .results-table tr:last-child td{border-bottom:none}
+        .results-table tr:hover{background:var(--blue-50)}
+        .btn-pdf{background:var(--green-600);color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+        .btn-pdf:hover{background:#047857}
+        .btn-pdf:disabled{opacity:.5;cursor:not-allowed}
+        .btn-pdf.loading{background:var(--gold-600)}
+
+        /* Error */
+        .error{margin-top:16px;display:none;background:var(--red-100);border:1px solid #fca5a5;border-radius:10px;padding:14px 18px;font-size:13px;color:var(--red-500)}
+        .error.show{display:block}
+
+        /* Data preview */
+        .data-preview{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:12px}
+        .data-preview h4{font-size:11px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px}
+        .data-preview .dp-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px}
+        .data-preview .dp-item{display:flex;gap:4px}
+        .data-preview .dp-label{color:var(--text-4);font-weight:500}
+        .data-preview .dp-value{color:var(--text);font-weight:500}
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <img src="/static/logo-sierra-full.png" alt="Sierra" onerror="this.style.display='none'">
+            <span>Vértice</span>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="section">Principal</div>
+            <a href="/analytics"><span class="icon">📊</span> Painel Gerencial</a>
+            <a href="/dashboard"><span class="icon">🏠</span> Dashboard</a>
+            <a href="/cotacoes" class="active"><span class="icon">🧮</span> Nova Cotação</a>
+            <a href="/clientes"><span class="icon">👥</span> Clientes</a>
+            <a href="/apolices"><span class="icon">📋</span> Apólices</a>
+            <div class="section">Ferramentas</div>
+            <a href="/renovacoes"><span class="icon">🔄</span> Renovações</a>
+            <a href="/conversor"><span class="icon">📄</span> Conversor PDF</a>
+            <div class="section">Sistema</div>
+            <a href="/seguranca"><span class="icon">🔒</span> Segurança</a>
+                    <div class="section" id="adminSection" style="display:none">Administração</div>
+            <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user"><strong id="userName">—</strong><br>Sierra Seguros</div>
+            <button class="btn-logout" onclick="logout()">Sair</button>
+        </div>
+    </aside>
+
+    <div class="main">
+        <div class="header">
+            <h2>🧮 Nova Cotação</h2>
+            <p>Envie CNH + CRVL + CEP → calcula no Agilizador → gera PDF Sierra</p>
+        </div>
+        <div class="content">
+            <!-- Steps -->
+            <div class="steps">
+                <div class="step active" id="step1"><span class="step-num">1</span>Documentos</div>
+                <div class="step" id="step2"><span class="step-num">2</span>CEP Pernoite</div>
+                <div class="step" id="step3"><span class="step-num">3</span>Calcular</div>
+                <div class="step" id="step4"><span class="step-num">4</span>Resultados</div>
+            </div>
+
+            <!-- Step 1: Upload -->
+            <div id="panel1">
+                <div class="upload-row" style="grid-template-columns:1fr 1fr 1fr">
+                    <div class="upload-box" id="cnhBox" onclick="document.getElementById('cnhInput').click()">
+                        <div class="ub-icon">🪪</div>
+                        <h4>CNH Segurado</h4>
+                        <p>Dono do veículo</p>
+                        <div class="ub-result" id="cnhResult"></div>
+                        <input type="file" id="cnhInput" accept="image/*,.pdf" hidden>
+                    </div>
+                    <div class="upload-box" id="cnhCondBox" onclick="document.getElementById('cnhCondInput').click()">
+                        <div class="ub-icon">🪪</div>
+                        <h4>CNH Condutor</h4>
+                        <p>Quem dirige (opcional)</p>
+                        <div class="ub-result" id="cnhCondResult"></div>
+                        <input type="file" id="cnhCondInput" accept="image/*,.pdf" hidden>
+                    </div>
+                    <div class="upload-box" id="crvlBox" onclick="document.getElementById('crvlInput').click()">
+                        <div class="ub-icon">🚗</div>
+                        <h4>CRVL</h4>
+                        <p>Documento do veículo</p>
+                        <div class="ub-result" id="crvlResult"></div>
+                        <input type="file" id="crvlInput" accept="image/*,.pdf" hidden>
+                    </div>
+                </div>
+
+                <!-- Data preview after OCR -->
+                <div class="data-preview" id="cnhPreview" style="display:none">
+                    <h4>🪪 Dados do Segurado</h4>
+                    <div class="dp-grid" id="cnhData"></div>
+                </div>
+                <div class="data-preview" id="cnhCondPreview" style="display:none">
+                    <h4>🪪 Dados do Condutor</h4>
+                    <div class="dp-grid" id="cnhCondData"></div>
+                </div>
+                <div class="data-preview" id="crvlPreview" style="display:none">
+                    <h4>🚗 Dados do Veículo</h4>
+                    <div class="dp-grid" id="crvlData"></div>
+                </div>
+            </div>
+
+            <!-- Step 2: CEP + Endereço -->
+            <div id="panel2">
+                <!-- Tabs: CEP ou Texto livre -->
+                <div style="display:flex;gap:8px;margin-bottom:12px">
+                    <button class="btn btn-outline" id="tabCep" onclick="showEndTab('cep')" style="font-size:12px;padding:6px 14px;border-color:var(--blue-500);color:var(--blue-700)">🔍 Buscar por CEP</button>
+                    <button class="btn btn-outline" id="tabTexto" onclick="showEndTab('texto')" style="font-size:12px;padding:6px 14px">📋 Colar endereço</button>
+                </div>
+
+                <!-- Opção 1: CEP -->
+                <div id="endCep">
+                    <div style="display:grid;grid-template-columns:160px 1fr;gap:12px;margin-bottom:12px">
+                        <div class="cep-field">
+                            <label>CEP Pernoite</label>
+                            <input type="text" id="cepInput" placeholder="00000-000" maxlength="9">
+                        </div>
+                        <div class="cep-field">
+                            <label>Endereço</label>
+                            <input type="text" id="enderecoInput" placeholder="Rua, número, bairro..." style="width:100%">
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 80px 1fr 160px 60px;gap:12px;margin-bottom:12px">
+                        <div class="cep-field">
+                            <label>Bairro</label>
+                            <input type="text" id="bairroInput" placeholder="Bairro">
+                        </div>
+                        <div class="cep-field">
+                            <label>Número</label>
+                            <input type="text" id="numeroInput" placeholder="Nº">
+                        </div>
+                        <div class="cep-field">
+                            <label>Cidade</label>
+                            <input type="text" id="cidadeInput" placeholder="Cidade">
+                        </div>
+                        <div class="cep-field">
+                            <label>Complemento</label>
+                            <input type="text" id="complementoInput" placeholder="Apto, bloco...">
+                        </div>
+                        <div class="cep-field">
+                            <label>UF</label>
+                            <input type="text" id="ufInput" placeholder="RS" maxlength="2" style="text-transform:uppercase">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Opção 2: Texto livre -->
+                <div id="endTexto" style="display:none">
+                    <div class="cep-field" style="max-width:100%">
+                        <label>Cole o endereço completo (com CEP)</label>
+                        <textarea id="enderecoTexto" placeholder="Ex: Rua das Flores, 123 - Centro, Caxias do Sul/RS - CEP 95034-160&#10;&#10;Pode colar do WhatsApp, email, etc. O sistema extrai o CEP automaticamente." style="width:100%;min-height:80px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical" oninput="autoParseEndereco()" onpaste="setTimeout(autoParseEndereco, 100)"></textarea>
+                        <button class="btn btn-outline" onclick="parseEnderecoTexto()" style="margin-top:8px;font-size:12px">🔍 Extrair endereço</button>
+                    </div>
+                </div>
+
+                <div class="cep-result" id="cepResult" style="margin-top:8px"></div>
+            </div>
+
+            <!-- Calcular button -->
+            <div style="margin-top:16px;display:flex;gap:8px">
+                <button class="btn btn-primary" id="btnCalcular" onclick="calcular()">🧮 Calcular Cotação</button>
+                <button class="btn btn-outline" onclick="resetar()">🔄 Limpar</button>
+            </div>
+
+            <!-- Status -->
+            <div class="calc-status" id="calcStatus">
+                <div class="status-bar">
+                    <div class="spinner"></div>
+                    <span class="status-text" id="statusText">Calculando...</span>
+                </div>
+                <div id="liveView" style="margin-top:12px">
+                    <p style="font-size:11px;color:var(--text-4);margin-bottom:6px">🖥️ Visão em tempo real do Agilizador:</p>
+                    <img id="liveScreenshot" style="width:100%;max-width:900px;border-radius:8px;border:1px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,0.1)" onerror="this.style.display='none'">
+                </div>
+            </div>
+
+            <!-- Error -->
+            <div class="error" id="errorBox"></div>
+
+            <!-- Results -->
+            <div class="results-section" id="resultsSection">
+                <h3 style="font-size:15px;font-weight:600;margin-bottom:12px">📊 Resultados</h3>
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Seguradora</th>
+                            <th>Prêmio</th>
+                            <th>Franquia</th>
+                            <th>Parcelas</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = '';
+let token = localStorage.getItem('sierra_token');
+let cnhOk = false, crvlOk = false, cepOk = false;
+let cotacaoData = {};
+
+// Auth
+async function apiFetch(url, opts = {}) {
+    opts.headers = {...(opts.headers||{}), 'Authorization': 'Bearer ' + token};
+    const r = await fetch(API + url, opts);
+    if (r.status === 401) { logout(); throw new Error('Sessão expirada'); }
+    return r;
+}
+function logout() { localStorage.removeItem('sierra_token'); location.href = '/login'; }
+
+// Init
+(async () => {
+    if (!token) return location.href = '/login';
+    try {
+        const r = await apiFetch('/api/auth/me');
+        if (!r.ok) return logout();
+        const u = await r.json();
+        document.getElementById('userName').textContent = u.nome || u.email;
+        
+        // Verifica se já tem sessão ativa antes de criar nova
+        const statusResp = await apiFetch('/api/cotacoes/status');
+        const statusData = await statusResp.json();
+        if (statusData.status === 'none') {
+            await apiFetch('/api/cotacoes/nova', {method: 'POST'});
+        } else {
+            // Sessão já existe — restaura estado na UI
+            if (statusData.cnh) { cnhOk = true; document.getElementById('cnhResult').textContent = '✅ ' + (statusData.cnh.nome || 'CNH OK'); }
+            if (statusData.crvl) { crvlOk = true; document.getElementById('crvlResult').textContent = '✅ ' + (statusData.crvl.placa || statusData.crvl.marca_modelo || 'CRVL OK'); }
+            if (statusData.cep_pernoite) { cepOk = true; document.getElementById('cepResult').textContent = '✅ CEP: ' + statusData.cep_pernoite; }
+            checkReady();
+            if (statusData.status === 'calculating') {
+                document.getElementById('calcStatus').classList.add('show');
+                document.getElementById('statusText').textContent = statusData.message || 'Calculando...';
+                pollStatus();
+            } else if (statusData.status === 'done' && statusData.resultados) {
+                showResults(statusData.resultados);
+            }
+        }
+    } catch { logout(); }
+})();
+
+// Upload handlers
+document.getElementById('cnhInput').addEventListener('change', e => uploadDoc('cnh', e.target.files[0]));
+document.getElementById('cnhCondInput').addEventListener('change', e => uploadDoc('cnh_condutor', e.target.files[0]));
+document.getElementById('crvlInput').addEventListener('change', e => uploadDoc('crvl', e.target.files[0]));
+
+async function uploadDoc(type, file) {
+    if (!file) return;
+    
+    // Map type to UI elements
+    const uiType = type === 'cnh_condutor' ? 'cnhCond' : type;
+    const apiType = type === 'cnh_condutor' ? 'cnh' : type;
+    
+    const box = document.getElementById(uiType + 'Box');
+    const result = document.getElementById(uiType + 'Result');
+    box.classList.remove('done');
+    result.textContent = '⏳ Processando OCR...';
+    
+    const fd = new FormData();
+    fd.append('file', file);
+    if (type === 'cnh_condutor') fd.append('condutor', 'true');
+    
+    try {
+        let r = await apiFetch('/api/cotacoes/upload-' + apiType, {method: 'POST', body: fd});
+        
+        // Se sessão expirou, recria e tenta de novo
+        if (r.status === 400) {
+            await apiFetch('/api/cotacoes/nova', {method: 'POST'});
+            r = await apiFetch('/api/cotacoes/upload-' + apiType, {method: 'POST', body: fd});
+        }
+        
+        const data = await r.json();
+        
+        if (r.ok) {
+            box.classList.add('done');
+            const info = data[apiType] || data;
+            
+            // Show preview
+            const preview = document.getElementById(uiType + 'Preview');
+            const grid = document.getElementById(uiType + 'Data');
+            grid.innerHTML = '';
+            
+            const fields = (apiType === 'cnh') 
+                ? {nome: 'Nome', cpf: 'CPF', nascimento: 'Nascimento', numero_cnh: 'Nº CNH'}
+                : {marca_modelo: 'Veículo', placa: 'Placa', ano_fab: 'Ano Fab', ano_mod: 'Ano Mod', chassi: 'Chassi', combustivel: 'Combustível'};
+            
+            for (const [k, label] of Object.entries(fields)) {
+                const val = info[k] || '-';
+                grid.innerHTML += `<div class="dp-item"><span class="dp-label">${label}:</span><span class="dp-value">${val}</span></div>`;
+            }
+            preview.style.display = 'block';
+            
+            const displayName = apiType === 'cnh' ? (info.nome || 'OK') : (info.placa || 'OK');
+            result.textContent = '✅ ' + displayName;
+            
+            if (type === 'cnh') cnhOk = true;
+            if (type === 'crvl') crvlOk = true;
+            // cnh_condutor is optional, doesn't block
+            
+            checkReady();
+        } else {
+            result.textContent = '❌ ' + (data.detail || 'Erro no OCR');
+        }
+    } catch (e) {
+        result.textContent = '❌ ' + e.message;
+    }
+}
+
+// Tabs endereço
+function showEndTab(tab) {
+    document.getElementById('endCep').style.display = tab === 'cep' ? 'block' : 'none';
+    document.getElementById('endTexto').style.display = tab === 'texto' ? 'block' : 'none';
+    document.getElementById('tabCep').style.borderColor = tab === 'cep' ? 'var(--blue-500)' : 'var(--border)';
+    document.getElementById('tabCep').style.color = tab === 'cep' ? 'var(--blue-700)' : 'var(--text-3)';
+    document.getElementById('tabTexto').style.borderColor = tab === 'texto' ? 'var(--blue-500)' : 'var(--border)';
+    document.getElementById('tabTexto').style.color = tab === 'texto' ? 'var(--blue-700)' : 'var(--text-3)';
+}
+
+async function parseEnderecoTexto() {
+    const texto = document.getElementById('enderecoTexto').value.trim();
+    if (!texto) return;
+    
+    // Extrai CEP do texto (formato 00000-000 ou 00000000)
+    const cepMatch = texto.match(/(\d{5})-?(\d{3})/);
+    if (cepMatch) {
+        const cep = cepMatch[1] + cepMatch[2];
+        document.getElementById('cepInput').value = cepMatch[1] + '-' + cepMatch[2];
+        
+        // Preenche via ViaCEP e depois envia pro backend
+        await setCep(cep);
+        
+        // Tenta extrair número do texto
+        const numMatch = texto.match(/[,\s]+(\d{1,5})\s*[-,]/);
+        if (numMatch) {
+            document.getElementById('numeroInput').value = numMatch[1];
+        }
+        
+        const cepResultEl = document.getElementById('cepResult');
+        if (!cepResultEl.textContent.includes('extraído')) {
+            cepResultEl.textContent = cepResultEl.textContent + ' (extraído do texto)';
+        }
+    } else {
+        document.getElementById('cepResult').textContent = '❌ CEP não encontrado no texto. Inclua o CEP (ex: 95034-160).';
+    }
+}
+
+// Auto-parse ao colar/digitar no textarea
+let _parseTimeout = null;
+function autoParseEndereco() {
+    clearTimeout(_parseTimeout);
+    _parseTimeout = setTimeout(() => {
+        const texto = document.getElementById('enderecoTexto').value.trim();
+        if (texto && texto.match(/\d{5}-?\d{3}/)) {
+            parseEnderecoTexto();
+        }
+    }, 500);
+}
+
+// CEP
+document.getElementById('cepInput').addEventListener('input', function() {
+    let v = this.value.replace(/\D/g, '');
+    if (v.length > 5) v = v.slice(0,5) + '-' + v.slice(5,8);
+    this.value = v;
+    
+    if (v.replace('-','').length === 8) {
+        setCep(v.replace('-',''));
+    }
+});
+
+async function setCep(cep) {
+    const result = document.getElementById('cepResult');
+    result.textContent = '⏳ Buscando...';
+    try {
+        // Busca endereço via ViaCEP
+        const viaResp = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        const via = await viaResp.json();
+        if (via && !via.erro) {
+            document.getElementById('enderecoInput').value = via.logradouro || '';
+            document.getElementById('bairroInput').value = via.bairro || '';
+            document.getElementById('cidadeInput').value = via.localidade || '';
+            document.getElementById('ufInput').value = via.uf || '';
+        }
+        
+        // Envia pro backend
+        const r = await apiFetch('/api/cotacoes/cep', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({cep})
+        });
+        const data = await r.json();
+        if (r.ok) {
+            result.textContent = '✅ ' + (via.logradouro ? `${via.logradouro}, ${via.bairro} - ${via.localidade}/${via.uf}` : (data.endereco || cep));
+            cepOk = true;
+            checkReady();
+        } else {
+            result.textContent = '❌ ' + (data.detail || 'CEP inválido');
+        }
+    } catch (e) {
+        result.textContent = '❌ ' + e.message;
+    }
+}
+
+function checkReady() {
+    // Update step indicators
+    if (cnhOk && crvlOk) {
+        document.getElementById('step1').classList.add('done');
+        document.getElementById('step1').classList.remove('active');
+    }
+    if (cepOk) {
+        document.getElementById('step2').classList.add('done');
+        document.getElementById('step2').classList.remove('active');
+        document.getElementById('step3').classList.add('active');
+    }
+    // Botão sempre habilitado — valida ao clicar
+    document.getElementById('btnCalcular').disabled = false;
+}
+
+// Calcular
+async function calcular() {
+    const btn = document.getElementById('btnCalcular');
+    const status = document.getElementById('calcStatus');
+    const statusText = document.getElementById('statusText');
+    const errorBox = document.getElementById('errorBox');
+    const resultsSection = document.getElementById('resultsSection');
+    
+    // Validação
+    const faltam = [];
+    if (!cnhOk) faltam.push('CNH do Segurado');
+    if (!crvlOk) faltam.push('CRVL do Veículo');
+    if (!cepOk) faltam.push('CEP Pernoite');
+    
+    if (faltam.length > 0) {
+        errorBox.textContent = '⚠️ Falta preencher: ' + faltam.join(', ');
+        errorBox.classList.add('show');
+        
+        // Highlight missing fields
+        if (!cnhOk) document.getElementById('cnhBox').style.borderColor = 'var(--red-500)';
+        if (!crvlOk) document.getElementById('crvlBox').style.borderColor = 'var(--red-500)';
+        if (!cepOk) {
+            document.getElementById('cepInput').style.borderColor = 'var(--red-500)';
+            document.getElementById('cepInput').focus();
+        }
+        setTimeout(() => {
+            document.querySelectorAll('.upload-box').forEach(b => b.style.borderColor = '');
+            document.getElementById('cepInput').style.borderColor = '';
+        }, 3000);
+        return;
+    }
+    
+    btn.disabled = true;
+    status.classList.add('show');
+    errorBox.classList.remove('show');
+    resultsSection.classList.remove('show');
+    
+    document.getElementById('step3').classList.add('active');
+    
+    try {
+        statusText.textContent = '🔐 Conectando ao Agilizador...';
+        
+        const r = await apiFetch('/api/cotacoes/calcular', {method: 'POST'});
+        const data = await r.json();
+        
+        if (r.ok || data.cotacao_id) {
+            // Poll status — até 5 minutos (100 × 3s)
+            statusText.textContent = '⏳ Calculando... pode levar até 3 minutos';
+            
+            let done = false;
+            for (let i = 0; i < 100; i++) {
+                await new Promise(ok => setTimeout(ok, 3000));
+                const sr = await apiFetch('/api/cotacoes/status');
+                const sd = await sr.json();
+                
+                if (sd.status === 'done') {
+                    done = true;
+                    statusText.textContent = '✅ Cálculo finalizado!';
+                    if (sd.resultados && sd.resultados.length > 0) {
+                        showResults(sd.resultados);
+                    } else {
+                        statusText.textContent = '⚠️ Cálculo finalizado mas sem resultados';
+                    }
+                    break;
+                } else if (sd.status === 'error') {
+                    throw new Error(sd.erro || sd.error || 'Erro no cálculo');
+                } else {
+                    statusText.textContent = sd.message || `⏳ Calculando... (${i * 3}s)`;
+                }
+                // Atualiza screenshot em tempo real
+                const img = document.getElementById('liveScreenshot');
+                img.src = '/static/debug_live.jpg?t=' + Date.now();
+                img.style.display = 'block';
+            }
+            
+            if (!done) throw new Error('Timeout — cálculo demorou demais (5 min)');
+            
+        } else {
+            throw new Error(data.detail || 'Erro ao iniciar cálculo');
+        }
+    } catch (e) {
+        errorBox.textContent = '❌ ' + e.message;
+        errorBox.classList.add('show');
+    }
+    
+    status.classList.remove('show');
+    btn.disabled = false;
+    document.getElementById('step3').classList.add('done');
+    document.getElementById('step3').classList.remove('active');
+    document.getElementById('step4').classList.add('active');
+}
+
+function showResults(results) {
+    const body = document.getElementById('resultsBody');
+    const section = document.getElementById('resultsSection');
+    body.innerHTML = '';
+    
+    const items = Array.isArray(results) ? results : (results.resultados || []);
+    
+    // Sort by premio
+    items.sort((a, b) => {
+        const pa = parseFloat((a.premio||'0').replace(/[^\d,]/g,'').replace(',','.'));
+        const pb = parseFloat((b.premio||'0').replace(/[^\d,]/g,'').replace(',','.'));
+        return pa - pb;
+    });
+    
+    for (const r of items) {
+        if (!r.premio) continue;
+        const seg = r.seguradora || '?';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${seg}</strong></td>
+            <td>${r.premio}</td>
+            <td>${r.franquia || '-'}</td>
+            <td>${r.parcelas || '-'}</td>
+            <td><button class="btn-pdf" onclick="gerarPDF('${seg.replace(/'/g,"\\'")}', this)">📄 Gerar PDF</button></td>
+        `;
+        body.appendChild(tr);
+    }
+    
+    section.classList.add('show');
+}
+
+async function gerarPDF(seguradora, btn) {
+    btn.disabled = true;
+    btn.classList.add('loading');
+    btn.textContent = '⏳ Gerando...';
+    
+    try {
+        const r = await apiFetch('/api/cotacoes/gerar-pdf', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({seguradora})
+        });
+        
+        if (r.ok) {
+            const blob = await r.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Sierra_${seguradora}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+            btn.textContent = '✅ Baixado';
+            btn.classList.remove('loading');
+        } else {
+            const data = await r.json();
+            alert('❌ ' + (data.detail || 'Erro ao gerar PDF'));
+            btn.textContent = '📄 Gerar PDF';
+            btn.classList.remove('loading');
+            btn.disabled = false;
+        }
+    } catch (e) {
+        alert('❌ ' + e.message);
+        btn.textContent = '📄 Gerar PDF';
+        btn.classList.remove('loading');
+        btn.disabled = false;
+    }
+}
+
+function resetar() {
+    cnhOk = crvlOk = cepOk = false;
+    document.querySelectorAll('.upload-box').forEach(b => b.classList.remove('done'));
+    document.querySelectorAll('.ub-result').forEach(r => r.textContent = '');
+    document.querySelectorAll('.data-preview').forEach(p => p.style.display = 'none');
+    document.getElementById('panel2').style.display = 'none';
+    document.getElementById('cepInput').value = '';
+    document.getElementById('cepResult').textContent = '';
+    document.getElementById('resultsSection').classList.remove('show');
+    document.getElementById('errorBox').classList.remove('show');
+    document.getElementById('calcStatus').classList.remove('show');
+    document.getElementById('btnCalcular').disabled = true;
+    document.querySelectorAll('.step').forEach(s => {s.classList.remove('done','active')});
+    document.getElementById('step1').classList.add('active');
+    
+    // Reset server session
+    apiFetch('/api/cotacoes/nova', {method: 'POST'}).catch(() => {});
+}
+</script>
+<script src="/static/admin-check.js"></script>
+</body>
+</html>

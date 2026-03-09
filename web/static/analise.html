@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vértice — Análise Detalhada</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --bg:#f8f9fb;--card:#fff;--border:#eaecf0;
+            --text:#101828;--text-2:#344054;--text-3:#667085;--text-4:#98a2b3;
+            --blue-700:#1a5276;--blue-600:#2471a3;--blue-500:#2980b9;
+            --blue-100:#dbeafe;--blue-50:#eff6ff;
+            --gold-600:#d97706;--gold-100:#fef3c7;
+            --green-600:#059669;--green-100:#d1fae5;
+            --red-500:#ef4444;--red-100:#fee2e2;
+            --radius:10px;--shadow:0 1px 3px rgba(0,0,0,.08);
+        }
+        body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text)}
+        .layout{display:flex;min-height:100vh}
+        .sidebar{width:240px;background:#fff;border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50}
+        .sidebar-brand{padding:16px 20px 18px;border-bottom:1px solid var(--border);margin-bottom:8px;text-align:center}
+        .sidebar-brand img{height:38px;display:block;margin:0 auto 6px}
+        .sidebar-brand span{font-size:10px;color:var(--text-4);font-weight:600;letter-spacing:.8px;text-transform:uppercase;display:block}
+        .sidebar-nav{flex:1;padding:4px 8px}
+        .sidebar-nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-3);text-decoration:none;font-size:13px;font-weight:500;transition:all .15s;margin-bottom:2px}
+        .sidebar-nav a:hover{background:var(--blue-50);color:var(--blue-700)}
+        .sidebar-nav a.active{background:var(--blue-50);color:var(--blue-700);font-weight:600}
+        .sidebar-nav a .icon{width:18px;text-align:center;font-size:15px}
+        .sidebar-nav .section{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;padding:16px 12px 6px}
+        .sidebar-footer{padding:12px 20px;border-top:1px solid var(--border)}
+        .sidebar-user{font-size:12px;color:var(--text-3)}.sidebar-user strong{color:var(--text);font-weight:600}
+        .btn-logout{background:none;border:none;color:var(--text-4);font-size:11px;cursor:pointer;padding:4px 0;font-family:inherit}
+        .btn-logout:hover{color:var(--red-500)}
+        .main{margin-left:240px;flex:1;min-width:0;padding:24px 32px 40px}
+
+        /* Breadcrumb */
+        .breadcrumb{display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+        .bc-item{font-size:13px;font-weight:500;color:var(--blue-600);cursor:pointer;padding:4px 10px;border-radius:6px;transition:all .15s;text-decoration:none}
+        .bc-item:hover{background:var(--blue-50)}
+        .bc-item.active{color:var(--text);font-weight:600;cursor:default;background:var(--blue-100)}
+        .bc-sep{color:var(--text-4);font-size:11px}
+        .bc-back{font-size:12px;color:var(--text-4);cursor:pointer;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:#fff;font-family:inherit}
+        .bc-back:hover{border-color:var(--blue-500);color:var(--blue-600)}
+
+        /* KPIs */
+        .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);margin-bottom:20px}
+        .kpi{background:#fff;padding:16px 18px;text-align:center}
+        .kpi-label{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.5px}
+        .kpi-val{font-size:22px;font-weight:700;margin-top:2px;letter-spacing:-.5px}
+
+        /* Cards */
+        .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:16px}
+        .card-h{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+        .card-title{font-size:13px;font-weight:600;color:var(--text)}
+        .card-badge{font-size:11px;color:var(--text-4)}
+        .chart-wrap{padding:16px 18px}
+
+        /* Grid */
+        .grid{display:grid;gap:16px;margin-bottom:16px}
+        .g2{grid-template-columns:1fr 1fr}
+        .g3{grid-template-columns:1fr 1fr 1fr}
+
+        /* Clickable bars */
+        .bar-item{padding:5px 0;cursor:pointer;border-radius:6px;padding:6px 8px;margin:0 -8px;transition:background .1s}
+        .bar-item:hover{background:var(--blue-50)}
+        .bar-meta{display:flex;justify-content:space-between;margin-bottom:3px}
+        .bar-name{font-size:12px;font-weight:500;color:var(--text-2)}
+        .bar-val{font-size:11px;color:var(--text-4);font-variant-numeric:tabular-nums}
+        .bar-track{height:5px;background:#f3f4f6;border-radius:3px;overflow:hidden}
+        .bar-fill{height:100%;border-radius:3px;transition:width .6s}
+
+        /* Table */
+        table{width:100%;border-collapse:collapse}
+        th{font-size:11px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.4px;padding:10px 14px;text-align:left;background:#fafbfc;border-bottom:1px solid var(--border)}
+        td{padding:10px 14px;font-size:12px;border-bottom:1px solid #f3f4f6}
+        tr:hover td{background:#f9fafb}
+        .r{text-align:right}
+        .mono{font-variant-numeric:tabular-nums}
+        a.link{color:var(--blue-600);text-decoration:none;font-weight:500}
+        a.link:hover{text-decoration:underline}
+        .pill{display:inline-flex;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600}
+        .pill-blue{background:var(--blue-100);color:var(--blue-600)}
+        .pill-green{background:var(--green-100);color:var(--green-600)}
+        .empty{text-align:center;color:var(--text-4);font-size:13px;padding:28px}
+
+        /* Active filters */
+        .filters-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+        .filter-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:16px;font-size:11px;font-weight:600;background:var(--blue-100);color:var(--blue-700);cursor:default}
+        .filter-chip .x{cursor:pointer;margin-left:2px;font-size:13px;color:var(--blue-500);line-height:1}
+        .filter-chip .x:hover{color:var(--red-500)}
+
+        @media(max-width:768px){.sidebar{display:none}.main{margin-left:0;padding:16px}.g2,.g3{grid-template-columns:1fr}.kpi-row{grid-template-columns:repeat(2,1fr)}}
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sidebar-brand"><img src="/static/logo-sierra-full.png" alt="Sierra"><span>Vértice</span></div>
+        <nav class="sidebar-nav">
+            <div class="section">Principal</div>
+            <a href="/analytics"><span class="icon">📊</span> Painel Gerencial</a>
+            <a href="/cotacoes"><span class="icon">🧮</span> Nova Cotação</a>
+                <a href="/clientes"><span class="icon">👥</span> Clientes</a>
+            <a href="/dashboard"><span class="icon">📋</span> Operacional</a>
+            <a href="/renovacoes"><span class="icon">🔄</span> Renovações</a>
+            <div class="section">Ferramentas</div>
+            <a href="/conversor"><span class="icon">📄</span> Conversor PDF</a>
+            <div class="section">Administração</div>
+            <a href="/seguranca"><span class="icon">🔒</span> Segurança</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user"><strong id="sideUser"></strong><br>Sierra Seguros</div>
+            <button class="btn-logout" onclick="logout()">Sair →</button>
+        </div>
+    </aside>
+    <div class="main">
+        <div id="app"><div class="empty">Carregando...</div></div>
+    </div>
+</div>
+
+<script>
+const token=localStorage.getItem('sierra_token');
+if(!token)location.href='/';
+const user=JSON.parse(localStorage.getItem('sierra_user')||'{}');
+const su=document.getElementById('sideUser');if(su)su.textContent=user.nome||'';
+const H={'Authorization':'Bearer '+token};
+const fmt=n=>n.toLocaleString('pt-BR');
+const R$=n=>'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
+const Rk=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?Math.round(n/1e3)+'k':fmt(n);
+const fD=d=>d?d.split('-').reverse().join('/'):'—';
+function logout(){localStorage.clear();location.href='/'}
+
+const PAL=['#1a5276','#2980b9','#3498db','#5dade2','#85c1e9','#aed6f1','#17a2b8','#138d75','#1abc9c','#27ae60','#f39c12','#e67e22','#e74c3c','#8b5cf6','#6366f1'];
+const MESES=['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const MESES_S=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+Chart.defaults.font.family="'Inter',sans-serif";
+Chart.defaults.font.size=11;
+Chart.defaults.color='#98a2b3';
+
+let charts=[];
+let state={ano:null,mes:null,seguradora:null,ramo:null,produtor:null};
+
+function destroyCharts(){charts.forEach(c=>c.destroy());charts=[]}
+
+function setState(key,val){
+    state[key]=val;
+    load();
+}
+function removeFilter(key){
+    state[key]=null;
+    load();
+}
+function goHome(){
+    state={ano:null,mes:null,seguradora:null,ramo:null,produtor:null};
+    location.href='/analytics';
+}
+
+async function load(){
+    destroyCharts();
+    const qs=Object.entries(state).filter(([k,v])=>v!==null).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&');
+    const r=await fetch('/api/analytics/faturamento-drill?'+qs,{headers:H});
+    if(r.status===401){logout();return}
+    const d=await r.json();
+    render(d);
+}
+
+function render(d){
+    const app=document.getElementById('app');
+    const f=d.filtros;
+    const t=d.totais;
+
+    // Breadcrumb
+    let bc='<div class="breadcrumb"><button class="bc-back" onclick="goHome()">← Painel</button><span class="bc-sep">›</span>';
+    if(!f.ano){
+        bc+='<span class="bc-item active">Todos os anos</span>';
+    } else {
+        bc+=`<span class="bc-item" onclick="state={ano:null,mes:null,seguradora:null,ramo:null,produtor:null};load()">Todos</span><span class="bc-sep">›</span>`;
+        if(!f.mes){
+            bc+=`<span class="bc-item active">${f.ano}</span>`;
+        } else {
+            bc+=`<span class="bc-item" onclick="state.mes=null;load()">${f.ano}</span><span class="bc-sep">›</span>`;
+            bc+=`<span class="bc-item active">${MESES[f.mes]}</span>`;
+        }
+    }
+    bc+='</div>';
+
+    // Active filters
+    let chips='<div class="filters-bar">';
+    if(f.seguradora) chips+=`<span class="filter-chip">🏢 ${f.seguradora} <span class="x" onclick="removeFilter('seguradora')">✕</span></span>`;
+    if(f.ramo) chips+=`<span class="filter-chip">📋 ${f.ramo} <span class="x" onclick="removeFilter('ramo')">✕</span></span>`;
+    if(f.produtor) chips+=`<span class="filter-chip">👤 ${f.produtor} <span class="x" onclick="removeFilter('produtor')">✕</span></span>`;
+    chips+='</div>';
+
+    // KPIs
+    let kpis=`<div class="kpi-row">
+        <div class="kpi"><div class="kpi-label">Faturamento</div><div class="kpi-val" style="color:var(--blue-700)">${R$(t.total)}</div></div>
+        <div class="kpi"><div class="kpi-label">Parcelas</div><div class="kpi-val">${fmt(t.parcelas)}</div></div>
+        <div class="kpi"><div class="kpi-label">Apólices</div><div class="kpi-val" style="color:var(--green-600)">${fmt(t.apolices)}</div></div>
+        <div class="kpi"><div class="kpi-label">Clientes</div><div class="kpi-val" style="color:var(--blue-600)">${fmt(t.clientes)}</div></div>
+    </div>`;
+
+    // Chart mensal (se tem ano selecionado e sem mes)
+    let chartHTML='';
+    if(f.ano && !f.mes && d.mensal.length){
+        chartHTML=`<div class="card"><div class="card-h"><span class="card-title">Mês a Mês — ${f.ano}</span><span class="card-badge">Clique no mês para detalhar</span></div><div class="chart-wrap"><canvas id="cMensal" height="140"></canvas></div></div>`;
+    }
+
+    // Bars
+    function barsHTML(items, title, icon, filterKey){
+        if(!items.length) return '';
+        const mx=Math.max(...items.map(i=>i.total));
+        return `<div class="card"><div class="card-h"><span class="card-title">${icon} ${title}</span><span class="card-badge">clique para filtrar</span></div><div style="padding:12px 18px">
+            ${items.map((s,i)=>`<div class="bar-item" onclick="setState('${filterKey}','${s.nome.replace(/'/g,"\\'")}')">
+                <div class="bar-meta"><span class="bar-name">${s.nome}</span><span class="bar-val">${R$(s.total)} · ${s.apolices} ap</span></div>
+                <div class="bar-track"><div class="bar-fill" style="width:${(s.total/mx*100).toFixed(0)}%;background:${PAL[i%PAL.length]}"></div></div>
+            </div>`).join('')}
+        </div></div>`;
+    }
+
+    let barsGrid=`<div class="grid g3">
+        ${barsHTML(d.seguradoras,'Seguradoras','🏢','seguradora')}
+        ${barsHTML(d.ramos,'Ramos','📋','ramo')}
+        ${barsHTML(d.produtores,'Produtores','👤','produtor')}
+    </div>`;
+
+    // Apólices table
+    let tableHTML='';
+    if(d.apolices && d.apolices.length){
+        tableHTML=`<div class="card"><div class="card-h"><span class="card-title">📄 Apólices (${d.apolices.length}${d.apolices.length>=50?' — mostrando 50 primeiras':''})</span></div>
+        <div style="overflow-x:auto"><table>
+            <thead><tr><th>Cliente</th><th>Seguradora</th><th>Ramo</th><th>Nº Apólice</th><th>Vigência</th><th>Produtor</th><th class="r">Prêmio</th></tr></thead>
+            <tbody>${d.apolices.map(a=>`<tr>
+                <td><a class="link" href="/clientes#cliente/${a.cliente_id}">${(a.cliente||'—').substring(0,28)}</a></td>
+                <td>${a.seguradora||'—'}</td>
+                <td><span class="pill pill-blue">${a.ramo||'—'}</span></td>
+                <td class="mono">${a.numero||'—'}</td>
+                <td class="mono">${fD(a.vig_inicio)} → ${fD(a.vig_fim)}</td>
+                <td>${(a.produtor||'—').replace('SIER - ','').substring(0,20)}</td>
+                <td class="r mono">${R$(a.premio)}</td>
+            </tr>`).join('')}</tbody>
+        </table></div></div>`;
+    }
+
+    app.innerHTML=bc+chips+kpis+chartHTML+barsGrid+tableHTML;
+
+    // Render chart
+    if(f.ano && !f.mes && d.mensal.length){
+        const mesData=new Array(12).fill(0);
+        d.mensal.forEach(m=>{mesData[m.mes-1]=m.total});
+        const maxM=Math.max(...mesData);
+        charts.push(new Chart(document.getElementById('cMensal'),{
+            type:'bar',
+            data:{
+                labels:MESES.slice(1),
+                datasets:[{data:mesData,backgroundColor:mesData.map(v=>v===maxM?'#1a5276':'#85c1e9'),borderRadius:4,borderSkipped:false,barPercentage:.65}]
+            },
+            options:{
+                responsive:true,
+                onClick:(e,els)=>{if(els.length){setState('mes',els[0].index+1)}},
+                onHover:(e,els)=>{e.native.target.style.cursor=els.length?'pointer':'default'},
+                plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>R$(c.raw)+' — clique para detalhar'}}},
+                scales:{x:{grid:{display:false},border:{display:false},ticks:{font:{size:10}}},y:{grid:{color:'#f3f4f6'},border:{display:false},ticks:{callback:v=>Rk(v)}}}
+            }
+        }));
+    }
+}
+
+// Init from URL params or default
+const urlP=new URLSearchParams(location.search);
+if(urlP.get('ano'))state.ano=+urlP.get('ano');
+if(urlP.get('mes'))state.mes=+urlP.get('mes');
+if(urlP.get('seguradora'))state.seguradora=urlP.get('seguradora');
+if(urlP.get('ramo'))state.ramo=urlP.get('ramo');
+if(urlP.get('produtor'))state.produtor=urlP.get('produtor');
+load();
+</script>
+</body>
+</html>

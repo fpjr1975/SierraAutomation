@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vértice — Apólices</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&display=swap" rel="stylesheet">
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --bg:#f8f9fb;--card:#fff;--border:#eaecf0;
+            --text:#101828;--text-2:#344054;--text-3:#667085;--text-4:#98a2b3;
+            --blue-700:#1a5276;--blue-600:#2471a3;--blue-500:#2980b9;
+            --blue-100:#dbeafe;--blue-50:#eff6ff;
+            --gold-600:#d97706;--gold-100:#fef3c7;--gold-50:#fffbeb;
+            --green-600:#059669;--green-100:#d1fae5;--green-50:#ecfdf5;
+            --red-500:#ef4444;--red-100:#fee2e2;--red-50:#fef2f2;
+            --radius-lg:14px;
+            --shadow-sm:0 1px 2px rgba(0,0,0,.05);
+            --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+        }
+        body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;min-height:100vh}
+
+        /* ── LAYOUT ── */
+        .layout{display:flex;min-height:100vh}
+        .sidebar{width:240px;background:#fff;border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50}
+        .sidebar-brand{padding:16px 20px 18px;border-bottom:1px solid var(--border);margin-bottom:8px;text-align:center}
+        .sidebar-brand img{height:38px;display:block;margin:0 auto 6px}
+        .sidebar-brand span{font-size:10px;color:var(--text-4);font-weight:600;letter-spacing:.8px;text-transform:uppercase;display:block}
+        .sidebar-nav{flex:1;padding:4px 8px}
+        .sidebar-nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-3);text-decoration:none;font-size:13px;font-weight:500;transition:all .15s;margin-bottom:2px}
+        .sidebar-nav a:hover{background:var(--blue-50);color:var(--blue-700)}
+        .sidebar-nav a.active{background:var(--blue-50);color:var(--blue-700);font-weight:600}
+        .sidebar-nav a .icon{width:18px;text-align:center;font-size:15px}
+        .sidebar-nav .section{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;padding:16px 12px 6px}
+        .sidebar-footer{padding:12px 20px;border-top:1px solid var(--border)}
+        .sidebar-user{font-size:12px;color:var(--text-3)}.sidebar-user strong{color:var(--text);font-weight:600}
+        .btn-logout{background:none;border:none;color:var(--text-4);font-size:11px;cursor:pointer;padding:4px 0;font-family:inherit}
+        .btn-logout:hover{color:var(--red-500)}
+        .main{margin-left:240px;flex:1;min-width:0}
+
+        /* ── HEADER ── */
+        .header{padding:24px 32px 0;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:12px}
+        .header h2{font-size:22px;font-weight:700;letter-spacing:-.5px}
+        .header p{font-size:13px;color:var(--text-3);margin-top:2px}
+        .content{padding:20px 32px 40px}
+
+        /* ── TOOLBAR ── */
+        .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+        .search-input{
+            flex:1;min-width:220px;max-width:360px;
+            padding:9px 14px 9px 36px;border:1px solid var(--border);
+            border-radius:10px;font-size:13px;font-family:inherit;
+            background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2398a2b3' stroke-width='2' viewBox='0 0 24 24'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 11px center;
+            outline:none;transition:border .15s;
+        }
+        .search-input:focus{border-color:var(--blue-500);box-shadow:0 0 0 3px rgba(41,128,185,.1)}
+        .sel{
+            padding:9px 12px;border:1px solid var(--border);border-radius:10px;
+            font-size:13px;font-family:inherit;background:#fff;color:var(--text-2);
+            cursor:pointer;outline:none;transition:border .15s;
+        }
+        .sel:focus{border-color:var(--blue-500)}
+        .btn-filter{
+            padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;
+            font-family:inherit;cursor:pointer;border:1px solid var(--border);
+            background:#fff;color:var(--text-2);transition:all .15s;
+        }
+        .btn-filter:hover,.btn-filter.active{background:var(--blue-50);border-color:var(--blue-500);color:var(--blue-700)}
+        .count-badge{font-size:11px;color:var(--text-4);padding:2px 0;white-space:nowrap;align-self:center}
+
+        /* ── TABLE ── */
+        .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden}
+        table{width:100%;border-collapse:collapse}
+        th{
+            font-size:11px;font-weight:600;color:var(--text-4);text-transform:uppercase;
+            letter-spacing:.4px;padding:10px 14px;text-align:left;
+            background:#fafbfc;border-bottom:1px solid var(--border);
+            cursor:pointer;user-select:none;white-space:nowrap;
+        }
+        th:hover{color:var(--blue-700)}
+        th.sorted{color:var(--blue-700)}
+        th .sort-icon{margin-left:4px;opacity:.5;font-size:10px}
+        th.sorted .sort-icon{opacity:1}
+        td{padding:10px 14px;font-size:13px;border-bottom:1px solid #f3f4f6}
+        tr:last-child td{border-bottom:none}
+        tr:hover td{background:#f9fafb}
+        tr.row-vencendo td{background:var(--gold-50)!important}
+        tr.row-vencendo:hover td{background:#fef3c7!important}
+        tr.row-vencida td{background:var(--red-50)!important}
+        tr.row-vencida:hover td{background:#fee2e2!important}
+        .r{text-align:right}
+        .mono{font-variant-numeric:tabular-nums;font-feature-settings:'tnum'}
+        a.link{color:var(--blue-600);text-decoration:none;font-weight:500}
+        a.link:hover{color:var(--blue-700);text-decoration:underline}
+
+        /* ── PILLS ── */
+        .pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600}
+        .pill-green{background:var(--green-100);color:var(--green-600)}
+        .pill-gold{background:var(--gold-100);color:var(--gold-600)}
+        .pill-blue{background:var(--blue-100);color:var(--blue-600)}
+        .pill-red{background:var(--red-100);color:var(--red-500)}
+        .pill-gray{background:#f3f4f6;color:var(--text-4)}
+
+        /* ── LEGEND ── */
+        .legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;align-items:center}
+        .legend-item{display:flex;align-items:center;gap:6px}
+        .legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+        .dot-yellow{background:#fbbf24}
+        .dot-red{background:#ef4444}
+
+        /* ── PAGINATION ── */
+        .pagination{display:flex;gap:6px;align-items:center;margin-top:16px;justify-content:center;flex-wrap:wrap}
+        .page-btn{padding:6px 14px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:12px;font-weight:500;color:var(--text-2);cursor:pointer;font-family:inherit;transition:all .15s}
+        .page-btn:hover:not(:disabled){background:var(--blue-50);border-color:var(--blue-500);color:var(--blue-700)}
+        .page-btn.active{background:var(--blue-700);border-color:var(--blue-700);color:#fff}
+        .page-btn:disabled{opacity:.4;cursor:default}
+        .page-info{font-size:12px;color:var(--text-4);padding:0 4px}
+
+        /* ── EMPTY ── */
+        .empty{text-align:center;color:var(--text-4);font-size:13px;padding:48px;display:flex;flex-direction:column;align-items:center;gap:8px}
+        .empty .e-icon{font-size:36px;opacity:.4}
+
+        /* ── MOBILE ── */
+        .mobile-nav{display:none;position:fixed;top:0;left:0;right:0;height:52px;background:#154360;z-index:200;align-items:center;padding:0 16px;gap:12px}
+        .mobile-nav h2{color:#fff;font-size:14px;font-weight:700;flex:1}
+        .mobile-nav .ham{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:8px}
+        .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150}
+        @media(max-width:768px){
+            .mobile-nav{display:flex!important}
+            .main{margin-left:0;padding-top:60px}
+            .sidebar{transform:translateX(-100%);transition:transform .2s}
+            .sidebar.open{transform:translateX(0)!important;z-index:160}
+            .sidebar-overlay.show{display:block}
+            .header,.content{padding-left:16px;padding-right:16px}
+            .toolbar{flex-direction:column;align-items:stretch}
+            .search-input{max-width:100%}
+            table{min-width:700px}
+            .card{overflow-x:auto;-webkit-overflow-scrolling:touch}
+        }
+    </style>
+</head>
+<body>
+<div class="mobile-nav">
+    <button class="ham" onclick="toggleMenu()">☰</button>
+    <h2>Apólices</h2>
+</div>
+<div class="sidebar-overlay" onclick="closeMenu()"></div>
+<div class="layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <img src="/static/logo-sierra-full.png" alt="Sierra Seguros">
+            <span>Vértice</span>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="section">Principal</div>
+            <a href="/analytics"><span class="icon">📊</span> Painel Gerencial</a>
+            <a href="/dashboard"><span class="icon">🏠</span> Dashboard</a>
+            <a href="/cotacoes"><span class="icon">🧮</span> Nova Cotação</a>
+            <a href="/clientes"><span class="icon">👥</span> Clientes</a>
+            <a href="/apolices" class="active"><span class="icon">📋</span> Apólices</a>
+            <a href="/renovacoes"><span class="icon">🔄</span> Renovações</a>
+            <div class="section">Ferramentas</div>
+            <a href="/conversor"><span class="icon">📄</span> Conversor PDF</a>
+            <div class="section">Administração</div>
+            <a href="/seguranca"><span class="icon">🔒</span> Segurança</a>
+                    <div class="section" id="adminSection" style="display:none">Administração</div>
+            <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user"><strong id="sideUser"></strong><br>Sierra Seguros</div>
+            <button class="btn-logout" onclick="logout()">Sair →</button>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="main">
+        <div class="header">
+            <div>
+                <h2>Apólices</h2>
+                <p>Carteira completa de apólices</p>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Legenda -->
+            <div class="legend">
+                <div class="legend-item"><div class="legend-dot dot-yellow"></div><span>Vencendo em 30 dias</span></div>
+                <div class="legend-item"><div class="legend-dot dot-red"></div><span>Vencidas</span></div>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="toolbar">
+                <input class="search-input" type="text" id="searchInput" placeholder="Buscar por segurado ou nº apólice…" oninput="debounceSearch()">
+
+                <select class="sel" id="selSeguradora" onchange="loadApolices(1)">
+                    <option value="">Todas as seguradoras</option>
+                </select>
+
+                <select class="sel" id="selRamo" onchange="loadApolices(1)">
+                    <option value="">Todos os ramos</option>
+                </select>
+
+                <select class="sel" id="selVigencia" onchange="loadApolices(1)">
+                    <option value="">Qualquer vigência</option>
+                    <option value="vigentes">Vigentes</option>
+                    <option value="30d">A vencer em 30d</option>
+                    <option value="60d">A vencer em 60d</option>
+                    <option value="90d">A vencer em 90d</option>
+                    <option value="vencidas">Vencidas</option>
+                </select>
+
+                <select class="sel" id="selStatus" onchange="loadApolices(1)">
+                    <option value="">Qualquer status</option>
+                </select>
+
+                <span class="count-badge" id="countBadge">—</span>
+            </div>
+
+            <!-- Tabela -->
+            <div class="card">
+                <div id="tableWrap">
+                    <div class="empty"><div class="e-icon">📋</div>Carregando apólices…</div>
+                </div>
+            </div>
+
+            <!-- Paginação -->
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const token = localStorage.getItem('sierra_token');
+if (!token) window.location.href = '/';
+
+const user = JSON.parse(localStorage.getItem('sierra_user') || '{}');
+document.getElementById('sideUser').textContent = user.nome || '';
+
+const H = { 'Authorization': `Bearer ${token}` };
+const R$ = n => n != null ? 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+const fD = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+
+function logout() { localStorage.clear(); window.location.href = '/'; }
+function toggleMenu() {
+    document.querySelector('.sidebar').classList.toggle('open');
+    document.querySelector('.sidebar-overlay').classList.toggle('show');
+}
+function closeMenu() {
+    document.querySelector('.sidebar').classList.remove('open');
+    document.querySelector('.sidebar-overlay').classList.remove('show');
+}
+
+let currentPage = 1;
+let currentOrder = 'vigencia_fim';
+let currentDir = 'asc';
+let searchTimer = null;
+
+function debounceSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => loadApolices(1), 400);
+}
+
+// Carrega filtros disponíveis
+async function loadFiltros() {
+    try {
+        const r = await fetch('/api/apolices/filtros', { headers: H });
+        if (r.status === 401) { logout(); return; }
+        const d = await r.json();
+
+        const selSeg = document.getElementById('selSeguradora');
+        d.seguradoras.forEach(s => {
+            const o = document.createElement('option');
+            o.value = s.sigla;
+            o.textContent = s.nome;
+            selSeg.appendChild(o);
+        });
+
+        const selRamo = document.getElementById('selRamo');
+        d.ramos.forEach(r => {
+            const o = document.createElement('option');
+            o.value = r.sigla;
+            o.textContent = r.nome;
+            selRamo.appendChild(o);
+        });
+
+        const selStatus = document.getElementById('selStatus');
+        d.statuses.forEach(s => {
+            const o = document.createElement('option');
+            o.value = s;
+            o.textContent = s.charAt(0).toUpperCase() + s.slice(1);
+            selStatus.appendChild(o);
+        });
+    } catch (e) { console.error('Erro ao carregar filtros', e); }
+}
+
+async function loadApolices(page = 1) {
+    currentPage = page;
+    const q = document.getElementById('searchInput').value.trim();
+    const seg = document.getElementById('selSeguradora').value;
+    const ramo = document.getElementById('selRamo').value;
+    const vig = document.getElementById('selVigencia').value;
+    const status = document.getElementById('selStatus').value;
+
+    const params = new URLSearchParams({
+        q, seguradora: seg, ramo, vigencia: vig, status,
+        order: currentOrder, dir: currentDir,
+        page, limit: 50
+    });
+
+    document.getElementById('tableWrap').innerHTML = '<div class="empty"><div class="e-icon">⏳</div>Carregando…</div>';
+
+    try {
+        const r = await fetch(`/api/apolices/?${params}`, { headers: H });
+        if (r.status === 401) { logout(); return; }
+        const d = await r.json();
+
+        document.getElementById('countBadge').textContent = `${d.total.toLocaleString('pt-BR')} apólices encontradas`;
+
+        if (!d.apolices.length) {
+            document.getElementById('tableWrap').innerHTML = '<div class="empty"><div class="e-icon">🔍</div>Nenhuma apólice encontrada</div>';
+            document.getElementById('pagination').innerHTML = '';
+            return;
+        }
+
+        const thSort = (col, label) => {
+            const active = currentOrder === col ? 'sorted' : '';
+            const icon = currentOrder === col ? (currentDir === 'asc' ? '↑' : '↓') : '↕';
+            return `<th class="${active}" onclick="sortBy('${col}')">${label}<span class="sort-icon">${icon}</span></th>`;
+        };
+
+        const rows = d.apolices.map(a => {
+            const cls = a.highlight === 'vencida' ? 'row-vencida' : a.highlight === '30d' ? 'row-vencendo' : '';
+            const statusPill = {
+                'vigente': 'pill-green', 'vencida': 'pill-red', 'cancelada': 'pill-gray'
+            }[a.status] || 'pill-blue';
+            return `<tr class="${cls}">
+                <td><a class="link" href="/clientes#cliente/${a.cliente_id}">${a.cliente_nome}</a></td>
+                <td><span style="font-weight:600;color:var(--blue-700)">${a.seguradora_nome}</span></td>
+                <td class="mono">${a.numero_apolice || '—'}</td>
+                <td class="mono">${fD(a.vigencia_inicio)} → ${fD(a.vigencia_fim)}</td>
+                <td class="r mono">${R$(a.premio)}</td>
+                <td>${a.ramo_nome}</td>
+                <td><span class="pill ${statusPill}">${a.status || '—'}</span></td>
+            </tr>`;
+        }).join('');
+
+        document.getElementById('tableWrap').innerHTML = `
+            <table>
+                <thead><tr>
+                    ${thSort('cliente', 'Segurado')}
+                    ${thSort('seguradora', 'Seguradora')}
+                    ${thSort('numero_apolice', 'Nº Apólice')}
+                    ${thSort('vigencia_fim', 'Vigência')}
+                    ${thSort('premio', 'Prêmio')}
+                    ${thSort('ramo', 'Ramo')}
+                    <th>Status</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+
+        renderPagination(d.page, d.pages);
+    } catch (e) {
+        document.getElementById('tableWrap').innerHTML = '<div class="empty"><div class="e-icon">⚠️</div>Erro ao carregar dados</div>';
+        console.error(e);
+    }
+}
+
+function sortBy(col) {
+    if (currentOrder === col) {
+        currentDir = currentDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentOrder = col;
+        currentDir = 'asc';
+    }
+    loadApolices(currentPage);
+}
+
+function renderPagination(page, pages) {
+    const el = document.getElementById('pagination');
+    if (pages <= 1) { el.innerHTML = ''; return; }
+
+    let html = `<button class="page-btn" onclick="loadApolices(${page - 1})" ${page <= 1 ? 'disabled' : ''}>← Anterior</button>`;
+
+    const range = [];
+    for (let i = Math.max(1, page - 2); i <= Math.min(pages, page + 2); i++) range.push(i);
+    if (range[0] > 1) html += `<button class="page-btn" onclick="loadApolices(1)">1</button>${range[0] > 2 ? '<span class="page-info">…</span>' : ''}`;
+    range.forEach(p => {
+        html += `<button class="page-btn ${p === page ? 'active' : ''}" onclick="loadApolices(${p})">${p}</button>`;
+    });
+    const last = range[range.length - 1];
+    if (last < pages) html += `${last < pages - 1 ? '<span class="page-info">…</span>' : ''}<button class="page-btn" onclick="loadApolices(${pages})">${pages}</button>`;
+
+    html += `<button class="page-btn" onclick="loadApolices(${page + 1})" ${page >= pages ? 'disabled' : ''}>Próxima →</button>`;
+    html += `<span class="page-info">Pág. ${page} / ${pages}</span>`;
+    el.innerHTML = html;
+}
+
+// Init
+loadFiltros();
+loadApolices(1);
+</script>
+<script src="/static/admin-check.js"></script>
+</body>
+</html>

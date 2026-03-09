@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vértice — Entrar</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{
+            font-family:'Inter',system-ui,sans-serif;
+            background:#f8f9fb;
+            min-height:100vh;display:flex;justify-content:center;align-items:center;
+            -webkit-font-smoothing:antialiased;
+        }
+        .login-wrap{width:100%;max-width:400px;padding:20px}
+        .logo{text-align:center;margin-bottom:32px}
+        .logo h1{font-size:28px;font-weight:700;color:#1a5276;letter-spacing:-.5px;display:flex;align-items:center;justify-content:center;gap:8px}
+        .logo p{color:#98a2b3;font-size:13px;margin-top:4px}
+        .card{
+            background:#fff;border:1px solid #eaecf0;border-radius:14px;
+            padding:32px;box-shadow:0 4px 16px rgba(0,0,0,.06);
+        }
+        .field{margin-bottom:18px}
+        .field label{display:block;font-size:13px;font-weight:500;color:#344054;margin-bottom:6px}
+        .field input{
+            width:100%;padding:10px 14px;border:1px solid #eaecf0;border-radius:10px;
+            font-size:14px;font-family:inherit;outline:none;transition:all .15s;
+            background:#fff;color:#101828;
+        }
+        .field input:focus{border-color:#2980b9;box-shadow:0 0 0 3px rgba(41,128,185,.1)}
+        .field input::placeholder{color:#98a2b3}
+        .btn{
+            width:100%;padding:11px;border:none;border-radius:10px;
+            background:#1a5276;color:#fff;font-size:14px;font-weight:600;
+            font-family:inherit;cursor:pointer;transition:all .15s;margin-top:4px;
+        }
+        .btn:hover{background:#2471a3}
+        .btn:disabled{opacity:.5;cursor:not-allowed}
+        .msg{font-size:12px;text-align:center;margin-top:12px;display:none;padding:8px;border-radius:8px}
+        .msg-err{background:#fee2e2;color:#dc2626}
+        .msg-ok{background:#d1fae5;color:#059669}
+        .footer{text-align:center;margin-top:20px;font-size:11px;color:#98a2b3}
+    </style>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <div class="login-wrap">
+        <div class="logo">
+            <img src="/static/logo-sierra-full.png" alt="Sierra — Soluções em Seguros" style="height:60px;margin-bottom:8px">
+            <p style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#98a2b3;margin-top:4px">Vértice</p>
+        </div>
+        <div class="card">
+            <form onsubmit="login(event)">
+                <div class="field">
+                    <label>Email</label>
+                    <input type="email" id="email" placeholder="seu@email.com" required autofocus>
+                </div>
+                <div class="field">
+                    <label>Senha</label>
+                    <input type="password" id="senha" placeholder="••••••••" required>
+                </div>
+                <button class="btn" id="btnLogin" type="submit">Entrar</button>
+                <div class="msg msg-err" id="msgErr"></div>
+                <div class="msg msg-ok" id="msgOk"></div>
+            </form>
+        </div>
+        <div class="footer">Sierra Seguros © 2026</div>
+    </div>
+<script>
+// If already logged in, redirect
+if(localStorage.getItem('sierra_token')) window.location.href='/analytics';
+
+async function login(e){
+    e.preventDefault();
+    const btn=document.getElementById('btnLogin');
+    const err=document.getElementById('msgErr');
+    const ok=document.getElementById('msgOk');
+    err.style.display='none';ok.style.display='none';
+    btn.disabled=true;btn.textContent='Entrando...';
+    try{
+        const r=await fetch('/api/auth/login',{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({email:document.getElementById('email').value,senha:document.getElementById('senha').value})
+        });
+        const d=await r.json();
+        if(r.ok){
+            localStorage.setItem('sierra_token',d.access_token);
+            localStorage.setItem('sierra_user',JSON.stringify(d.user));
+            ok.textContent='Login OK!';ok.style.display='block';
+            setTimeout(()=>window.location.href='/analytics',400);
+        }else{
+            err.textContent=d.detail||'Credenciais inválidas';err.style.display='block';
+        }
+    }catch(e){err.textContent='Erro de conexão';err.style.display='block'}
+    btn.disabled=false;btn.textContent='Entrar';
+}
+</script>
+</body>
+</html>

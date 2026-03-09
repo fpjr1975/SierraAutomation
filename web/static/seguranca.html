@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vértice — Segurança</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&display=swap" rel="stylesheet">
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#f8f9fb;--card:#fff;--border:#eaecf0;--text:#101828;--text-2:#344054;--text-3:#667085;--text-4:#98a2b3;--blue-700:#1a5276;--blue-600:#2471a3;--blue-500:#2980b9;--blue-100:#dbeafe;--blue-50:#eff6ff;--green-600:#059669;--green-100:#d1fae5;--red-500:#ef4444;--red-100:#fee2e2;--gold-600:#d97706;--gold-100:#fef3c7;--radius:10px;--shadow:0 1px 3px rgba(0,0,0,.08)}
+        body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text)}
+        .layout{display:flex;min-height:100vh}
+        .sidebar{width:240px;background:#fff;border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50}
+        .sidebar-brand{padding:16px 20px 18px;border-bottom:1px solid var(--border);margin-bottom:8px;text-align:center}
+        .sidebar-brand img{height:38px;display:block;margin:0 auto 6px}
+        .sidebar-brand span{font-size:10px;color:var(--text-4);font-weight:600;letter-spacing:.8px;text-transform:uppercase;display:block}
+        .sidebar-nav{flex:1;padding:4px 8px}
+        .sidebar-nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-3);text-decoration:none;font-size:13px;font-weight:500;transition:all .15s;margin-bottom:2px}
+        .sidebar-nav a:hover{background:var(--blue-50);color:var(--blue-700)}
+        .sidebar-nav a.active{background:var(--blue-50);color:var(--blue-700);font-weight:600}
+        .sidebar-nav .section{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;padding:16px 12px 6px}
+        .sidebar-footer{padding:12px 20px;border-top:1px solid var(--border)}
+        .sidebar-user{font-size:12px;color:var(--text-3)}.sidebar-user strong{color:var(--text);font-weight:600}
+        .btn-logout{background:none;border:none;color:var(--text-4);font-size:11px;cursor:pointer;padding:4px 0;font-family:inherit}
+        .btn-logout:hover{color:var(--red-500)}
+        .main{margin-left:240px;flex:1;min-width:0;padding:24px 32px 40px}
+        h2{font-size:18px;font-weight:700;margin-bottom:20px;color:var(--text)}
+        .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:16px}
+        .card-h{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+        .card-title{font-size:13px;font-weight:600;color:var(--text)}
+        .card-badge{font-size:11px;color:var(--text-4)}
+        .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);margin-bottom:20px}
+        .kpi{background:#fff;padding:16px 18px;text-align:center}
+        .kpi-label{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.5px}
+        .kpi-val{font-size:22px;font-weight:700;margin-top:2px}
+
+        /* Tabs */
+        .tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:0}
+        .tab{padding:8px 16px;font-size:13px;font-weight:500;color:var(--text-3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+        .tab:hover{color:var(--text)}
+        .tab.active{color:var(--blue-700);border-bottom-color:var(--blue-700);font-weight:600}
+        .tab-content{display:none}.tab-content.active{display:block}
+
+        /* Table */
+        table{width:100%;border-collapse:collapse}
+        th{font-size:11px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.4px;padding:10px 14px;text-align:left;background:#fafbfc;border-bottom:1px solid var(--border)}
+        td{padding:10px 14px;font-size:12px;border-bottom:1px solid #f3f4f6}
+        tr:hover td{background:#f9fafb}
+        .r{text-align:right}.mono{font-variant-numeric:tabular-nums}
+        .pill{display:inline-flex;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600}
+        .pill-admin{background:#ede9fe;color:#7c3aed}
+        .pill-gestor{background:var(--blue-100);color:var(--blue-700)}
+        .pill-corretor{background:var(--green-100);color:var(--green-600)}
+        .pill-operacional{background:var(--gold-100);color:var(--gold-600)}
+        .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+        .dot-green{background:var(--green-600)}.dot-red{background:var(--red-500)}.dot-gray{background:var(--text-4)}
+        .empty{text-align:center;color:var(--text-4);font-size:13px;padding:32px}
+
+        /* Buttons */
+        .btn{padding:6px 14px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s}
+        .btn-primary{background:var(--blue-600);color:#fff;border-color:var(--blue-600)}
+        .btn-primary:hover{background:var(--blue-700)}
+        .btn-danger{color:var(--red-500);border-color:var(--red-500);background:#fff}
+        .btn-danger:hover{background:var(--red-100)}
+        .btn-sm{padding:4px 10px;font-size:11px}
+
+        /* Modal */
+        .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center}
+        .modal{background:#fff;border-radius:12px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+        .modal-h{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+        .modal-h h3{font-size:15px;font-weight:700}
+        .modal-close{background:none;border:none;font-size:18px;color:var(--text-4);cursor:pointer}
+        .modal-body{padding:20px}
+        .form-group{margin-bottom:14px}
+        .form-group label{display:block;font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+        .form-group input,.form-group select{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit}
+        .form-group input:focus,.form-group select:focus{outline:none;border-color:var(--blue-500)}
+        .modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+
+        /* Page btn */
+        .page-btn{padding:6px 14px;border:1px solid var(--border);border-radius:6px;background:#fff;font-size:12px;font-weight:500;color:var(--text-2);cursor:pointer;font-family:inherit}
+        .page-btn:hover:not(:disabled){background:var(--blue-50);border-color:var(--blue-600)}
+        .page-btn:disabled{opacity:.4;cursor:default}
+
+        @media(max-width:768px){.sidebar{display:none}.main{margin-left:0;padding:16px}.kpi-row{grid-template-columns:repeat(2,1fr)}}
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sidebar-brand"><img src="/static/logo-sierra-full.png" alt="Sierra"><span>Vértice</span></div>
+        <nav class="sidebar-nav">
+            <div class="section">Principal</div>
+            <a href="/analytics"><span class="icon">📊</span> Painel Gerencial</a>
+            <a href="/cotacoes"><span class="icon">🧮</span> Nova Cotação</a>
+                <a href="/clientes"><span class="icon">👥</span> Clientes</a>
+            <a href="/dashboard"><span class="icon">📋</span> Operacional</a>
+            <a href="/renovacoes"><span class="icon">🔄</span> Renovações</a>
+            <div class="section">Ferramentas</div>
+            <a href="/conversor"><span class="icon">📄</span> Conversor PDF</a>
+            <div class="section">Administração</div>
+            <a href="/seguranca" class="active"><span class="icon">🔒</span> Segurança</a>
+                    <div class="section" id="adminSection" style="display:none">Administração</div>
+            <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user"><strong id="sideUser"></strong><br>Sierra Seguros</div>
+            <button class="btn-logout" onclick="logout()">Sair →</button>
+        </div>
+    </aside>
+    <div class="main">
+        <h2>🔒 Segurança</h2>
+        <div id="kpis"></div>
+        <div class="tabs" id="tabBar">
+            <div class="tab active" data-tab="usuarios" onclick="switchTab('usuarios')">👥 Usuários</div>
+            <div class="tab" data-tab="audit" onclick="switchTab('audit')">📋 Audit Log</div>
+            <div class="tab" data-tab="tentativas" onclick="switchTab('tentativas')">🛡️ Tentativas de Login</div>
+            <div class="tab" data-tab="senha" onclick="switchTab('senha')">🔑 Minha Senha</div>
+        </div>
+        <div id="tabContent"></div>
+    </div>
+</div>
+
+<div id="modalContainer"></div>
+
+<script>
+const token=localStorage.getItem('sierra_token');
+if(!token)location.href='/';
+const user=JSON.parse(localStorage.getItem('sierra_user')||'{}');
+document.getElementById('sideUser').textContent=user.nome||'';
+const H={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
+function logout(){localStorage.clear();location.href='/'}
+const fD=d=>d?new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+const isAdmin=user.role==='admin';
+
+let currentTab='usuarios';
+function switchTab(tab){
+    currentTab=tab;
+    document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+    loadTab(tab);
+}
+
+const pillRole=r=>({admin:'pill-admin',gestor:'pill-gestor',corretor:'pill-corretor',operacional:'pill-operacional'}[r]||'');
+const roleLabel=r=>({admin:'Admin',gestor:'Gestor',corretor:'Corretor',operacional:'Operacional'}[r]||r);
+
+async function loadStats(){
+    if(!isAdmin){document.getElementById('kpis').innerHTML='';return}
+    const r=await fetch('/api/seguranca/stats',{headers:H});
+    if(r.status===401){logout();return}
+    if(r.status===403){document.getElementById('kpis').innerHTML='<div class="empty">Acesso restrito a administradores</div>';return}
+    const d=await r.json();
+    document.getElementById('kpis').innerHTML=`
+        <div class="kpi-row">
+            <div class="kpi"><div class="kpi-label">Usuários Ativos</div><div class="kpi-val" style="color:var(--green-600)">${d.usuarios.ativos}</div></div>
+            <div class="kpi"><div class="kpi-label">Total Usuários</div><div class="kpi-val">${d.usuarios.total}</div></div>
+            <div class="kpi"><div class="kpi-label">Logins (24h)</div><div class="kpi-val" style="color:var(--blue-600)">${d.login_24h.total}</div></div>
+            <div class="kpi"><div class="kpi-label">Falhas (24h)</div><div class="kpi-val" style="color:${d.login_24h.falhas>0?'var(--red-500)':'var(--text-4)'}">${d.login_24h.falhas}</div></div>
+        </div>
+    `;
+}
+
+async function loadTab(tab){
+    const el=document.getElementById('tabContent');
+    if(tab==='usuarios') await loadUsuarios(el);
+    else if(tab==='audit') await loadAudit(el);
+    else if(tab==='tentativas') await loadTentativas(el);
+    else if(tab==='senha') loadSenha(el);
+}
+
+async function loadUsuarios(el){
+    if(!isAdmin){el.innerHTML='<div class="empty">Acesso restrito a administradores</div>';return}
+    const r=await fetch('/api/seguranca/usuarios',{headers:H});
+    if(r.status===403){el.innerHTML='<div class="empty">Acesso restrito</div>';return}
+    const data=await r.json();
+    el.innerHTML=`
+        <div class="card">
+            <div class="card-h">
+                <span class="card-title">Usuários do Sistema</span>
+                <button class="btn btn-primary btn-sm" onclick="showCreateUser()">+ Novo Usuário</button>
+            </div>
+            <table>
+                <thead><tr><th>Nome</th><th>Email</th><th>Perfil</th><th>Telefone</th><th>Status</th><th>Último Login</th><th>Ações</th></tr></thead>
+                <tbody>${data.map(u=>`
+                    <tr>
+                        <td><strong>${u.nome}</strong></td>
+                        <td class="mono">${u.email||'—'}</td>
+                        <td><span class="pill ${pillRole(u.role)}">${roleLabel(u.role)}</span></td>
+                        <td>${u.telefone||'—'}</td>
+                        <td><span class="dot ${u.active?'dot-green':'dot-red'}"></span>${u.active?'Ativo':'Inativo'}</td>
+                        <td class="mono">${fD(u.last_login)}</td>
+                        <td>
+                            <button class="btn btn-sm" onclick="showEditUser(${JSON.stringify(u).replace(/"/g,'&quot;')})">✏️</button>
+                            <button class="btn btn-sm" onclick="showResetPw(${u.id},'${u.nome.replace(/'/g,"\\'")}')">🔑</button>
+                            ${u.active?`<button class="btn btn-sm btn-danger" onclick="toggleUser(${u.id},false)">🚫</button>`:`<button class="btn btn-sm" onclick="toggleUser(${u.id},true)">✅</button>`}
+                        </td>
+                    </tr>
+                `).join('')}</tbody>
+            </table>
+        </div>
+    `;
+}
+
+let auditPage=1;
+async function loadAudit(el,page=1){
+    if(!isAdmin){el.innerHTML='<div class="empty">Acesso restrito</div>';return}
+    auditPage=page;
+    const r=await fetch(`/api/seguranca/audit?page=${page}&limit=30`,{headers:H});
+    const d=await r.json();
+    el.innerHTML=`<div class="card">
+        <div class="card-h"><span class="card-title">Registro de Atividades</span><span class="card-badge">${d.total} eventos</span></div>
+        <table>
+            <thead><tr><th>Data</th><th>Usuário</th><th>Ação</th><th>Detalhe</th><th>IP</th></tr></thead>
+            <tbody>${d.items.length?d.items.map(a=>`<tr>
+                <td class="mono">${fD(a.created_at)}</td>
+                <td>${a.user_nome||'—'}</td>
+                <td><span class="pill pill-gestor">${a.action}</span></td>
+                <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.detail||'—'}</td>
+                <td class="mono">${a.ip||'—'}</td>
+            </tr>`).join(''):'<tr><td colspan="5" class="empty">Nenhum registro</td></tr>'}</tbody>
+        </table>
+        ${d.pages>1?`<div style="display:flex;justify-content:center;gap:8px;padding:14px">
+            <button class="page-btn" onclick="loadAudit(document.getElementById('tabContent'),${page-1})" ${page<=1?'disabled':''}>← Anterior</button>
+            <span style="font-size:12px;color:var(--text-3);padding:6px">Página ${page} de ${d.pages}</span>
+            <button class="page-btn" onclick="loadAudit(document.getElementById('tabContent'),${page+1})" ${page>=d.pages?'disabled':''}>Próxima →</button>
+        </div>`:''}
+    </div>`;
+}
+
+async function loadTentativas(el){
+    if(!isAdmin){el.innerHTML='<div class="empty">Acesso restrito</div>';return}
+    const r=await fetch('/api/seguranca/tentativas?limit=50',{headers:H});
+    const d=await r.json();
+    el.innerHTML=`<div class="card">
+        <div class="card-h"><span class="card-title">Tentativas de Login (7 dias)</span><span class="card-badge">${d.total} tentativas</span></div>
+        <table>
+            <thead><tr><th>Data</th><th>Email</th><th>IP</th><th>Resultado</th></tr></thead>
+            <tbody>${d.items.length?d.items.map(a=>`<tr>
+                <td class="mono">${fD(a.created_at)}</td>
+                <td class="mono">${a.email}</td>
+                <td class="mono">${a.ip||'—'}</td>
+                <td><span class="dot ${a.success?'dot-green':'dot-red'}"></span>${a.success?'Sucesso':'Falha'}</td>
+            </tr>`).join(''):'<tr><td colspan="4" class="empty">Nenhuma tentativa registrada</td></tr>'}</tbody>
+        </table>
+    </div>`;
+}
+
+function loadSenha(el){
+    el.innerHTML=`<div class="card">
+        <div class="card-h"><span class="card-title">Alterar Minha Senha</span></div>
+        <div style="padding:20px;max-width:400px">
+            <div class="form-group"><label>Senha Atual</label><input type="password" id="pwCurrent"></div>
+            <div class="form-group"><label>Nova Senha</label><input type="password" id="pwNew"></div>
+            <div class="form-group"><label>Confirmar Nova Senha</label><input type="password" id="pwConfirm"></div>
+            <button class="btn btn-primary" onclick="changePw()">Alterar Senha</button>
+            <div id="pwMsg" style="margin-top:10px;font-size:12px"></div>
+        </div>
+    </div>`;
+}
+
+async function changePw(){
+    const cur=document.getElementById('pwCurrent').value;
+    const nw=document.getElementById('pwNew').value;
+    const cf=document.getElementById('pwConfirm').value;
+    const msg=document.getElementById('pwMsg');
+    if(!cur||!nw){msg.innerHTML='<span style="color:var(--red-500)">Preencha todos os campos</span>';return}
+    if(nw!==cf){msg.innerHTML='<span style="color:var(--red-500)">Senhas não conferem</span>';return}
+    if(nw.length<6){msg.innerHTML='<span style="color:var(--red-500)">Mínimo 6 caracteres</span>';return}
+    const r=await fetch('/api/seguranca/trocar-senha',{method:'POST',headers:H,body:JSON.stringify({senha_atual:cur,nova_senha:nw})});
+    const d=await r.json();
+    if(r.ok) msg.innerHTML='<span style="color:var(--green-600)">✅ '+d.message+'</span>';
+    else msg.innerHTML='<span style="color:var(--red-500)">❌ '+d.detail+'</span>';
+}
+
+// ═══ MODALS ═══
+function closeModal(){document.getElementById('modalContainer').innerHTML=''}
+
+function showCreateUser(){
+    document.getElementById('modalContainer').innerHTML=`
+    <div class="modal-bg" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-h"><h3>Novo Usuário</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+            <div class="modal-body">
+                <div class="form-group"><label>Nome</label><input id="nuNome" placeholder="Nome completo"></div>
+                <div class="form-group"><label>Email</label><input id="nuEmail" type="email" placeholder="email@exemplo.com"></div>
+                <div class="form-group"><label>Senha</label><input id="nuSenha" type="password" placeholder="Mínimo 6 caracteres"></div>
+                <div class="form-group"><label>Perfil</label><select id="nuRole"><option value="operacional">Operacional</option><option value="corretor">Corretor</option><option value="gestor">Gestor</option><option value="admin">Admin</option></select></div>
+                <div class="form-group"><label>Telefone</label><input id="nuTel" placeholder="(00) 00000-0000"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="createUser()">Criar Usuário</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+async function createUser(){
+    const body={nome:document.getElementById('nuNome').value,email:document.getElementById('nuEmail').value,senha:document.getElementById('nuSenha').value,role:document.getElementById('nuRole').value,telefone:document.getElementById('nuTel').value||null};
+    if(!body.nome||!body.email||!body.senha){alert('Preencha nome, email e senha');return}
+    const r=await fetch('/api/seguranca/usuarios',{method:'POST',headers:H,body:JSON.stringify(body)});
+    const d=await r.json();
+    if(r.ok){closeModal();switchTab('usuarios');alert(d.message)}
+    else alert('Erro: '+d.detail);
+}
+
+function showEditUser(u){
+    document.getElementById('modalContainer').innerHTML=`
+    <div class="modal-bg" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-h"><h3>Editar: ${u.nome}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+            <div class="modal-body">
+                <div class="form-group"><label>Nome</label><input id="euNome" value="${u.nome}"></div>
+                <div class="form-group"><label>Email</label><input id="euEmail" value="${u.email||''}"></div>
+                <div class="form-group"><label>Perfil</label><select id="euRole">${['admin','gestor','corretor','operacional'].map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${roleLabel(r)}</option>`).join('')}</select></div>
+                <div class="form-group"><label>Telefone</label><input id="euTel" value="${u.telefone||''}"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="editUser(${u.id})">Salvar</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+async function editUser(id){
+    const body={nome:document.getElementById('euNome').value,email:document.getElementById('euEmail').value,role:document.getElementById('euRole').value,telefone:document.getElementById('euTel').value||null};
+    const r=await fetch(`/api/seguranca/usuarios/${id}`,{method:'PUT',headers:H,body:JSON.stringify(body)});
+    if(r.ok){closeModal();switchTab('usuarios')} else{const d=await r.json();alert('Erro: '+d.detail)}
+}
+
+function showResetPw(id,nome){
+    document.getElementById('modalContainer').innerHTML=`
+    <div class="modal-bg" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-h"><h3>Resetar Senha: ${nome}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+            <div class="modal-body">
+                <div class="form-group"><label>Nova Senha</label><input id="rpSenha" type="password" placeholder="Mínimo 6 caracteres"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="resetPw(${id})">Resetar</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+async function resetPw(id){
+    const senha=document.getElementById('rpSenha').value;
+    if(!senha||senha.length<6){alert('Senha deve ter pelo menos 6 caracteres');return}
+    const r=await fetch(`/api/seguranca/usuarios/${id}/reset-senha`,{method:'POST',headers:H,body:JSON.stringify({user_id:id,nova_senha:senha})});
+    if(r.ok){closeModal();alert('Senha resetada!')} else{const d=await r.json();alert('Erro: '+d.detail)}
+}
+
+async function toggleUser(id,active){
+    if(!confirm(active?'Reativar este usuário?':'Desativar este usuário?'))return;
+    const r=await fetch(`/api/seguranca/usuarios/${id}`,{method:'PUT',headers:H,body:JSON.stringify({active})});
+    if(r.ok)switchTab('usuarios'); else alert('Erro ao atualizar');
+}
+
+// Init
+loadStats();
+switchTab('usuarios');
+</script>
+<script src="/static/admin-check.js"></script>
+</body>
+</html>
