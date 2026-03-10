@@ -5,10 +5,15 @@ Reusa o mesmo engine do bot Telegram.
 import os
 import re
 import sys
+import json
 import tempfile
+import logging
+import httpx
 from datetime import datetime
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from typing import Optional
 
 sys.path.insert(0, "/root/sierra")
 sys.path.insert(0, "/root/sierra/web")
@@ -103,11 +108,89 @@ async def converter_upload(file: UploadFile = File(...), user: dict = Depends(ge
                 pass
 
 
+ISSUE_LOG = "/root/sierra/extraction_issues.log"
+BOT_TOKEN = os.environ.get("SIERRA_BOT_TOKEN", "")
+ADMIN_CHAT_ID = 6553672222
+
+logger = logging.getLogger("conversor")
+
+
+class IssueReport(BaseModel):
+    seguradora: str
+    filename: str
+    campo: str = ""
+    descricao: str = ""
+    dados_extraidos: Optional[dict] = None
+
+
+@router.post("/report-issue")
+async def report_issue(report: IssueReport, user: dict = Depends(get_current_user)):
+    """Recebe report de franquia/dado faltando e notifica via Telegram."""
+    user_nome = user.get("nome", "Desconhecido")
+    timestamp = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    # Log to file
+    entry = {
+        "timestamp": timestamp,
+        "user": user_nome,
+        "seguradora": report.seguradora,
+        "filename": report.filename,
+        "campo": report.campo,
+        "descricao": report.descricao,
+    }
+    try:
+        with open(ISSUE_LOG, "a") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception as e:
+        logger.error(f"Erro ao salvar issue: {e}")
+
+    # Notify via Telegram
+    msg = (
+        f"⚠️ *Problema na extração reportado*\n\n"
+        f"👤 Usuário: {user_nome}\n"
+        f"🏢 Seguradora: {report.seguradora}\n"
+        f"📄 Arquivo: {report.filename}\n"
+    )
+    if report.campo:
+        msg += f"📌 Campo: {report.campo}\n"
+    if report.descricao:
+        msg += f"💬 Descrição: {report.descricao}\n"
+    msg += f"\n🕐 {timestamp}"
+
+    if BOT_TOKEN:
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                    json={
+                        "chat_id": ADMIN_CHAT_ID,
+                        "text": msg,
+                        "parse_mode": "Markdown",
+                    },
+                    timeout=10,
+                )
+        except Exception as e:
+            logger.error(f"Erro ao enviar notificação Telegram: {e}")
+
+    return {"success": True, "message": "Report enviado com sucesso"}
+
+
 @router.get("/download/{filename}")
-async def converter_download(filename: str, token: str = None, user: dict = Depends(get_current_user)):
-    """Download do PDF convertido."""
+async def converter_download(filename: str, token: str = None):
+    """Download do PDF convertido. Aceita token via query string para downloads diretos do browser."""
+    from jose import jwt, JWTError
+    SECRET_KEY = "sierra-saas-2026-super-secret-key-change-in-production"
+    ALGORITHM = "HS256"
+
+    if not token:
+        raise HTTPException(401, "Token de autenticação necessário")
+    try:
+        jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError:
+        raise HTTPException(401, "Token inválido ou expirado")
+
     filename = os.path.basename(filename)
     filepath = os.path.join(OUTPUT_DIR, filename)
     if not os.path.exists(filepath):
-        raise HTTPException(404, "Arquivo não encontrado")
+        raise HTTPException(404, "Arquivo não encontrado. Pode ter sido removido do servidor.")
     return FileResponse(filepath, media_type="application/pdf", filename=filename)

@@ -109,6 +109,8 @@ class BradescoExtractor(BaseExtractor):
                                coberturas.insert(0, ("Compreensiva", f"{fator.group(1)}% FIPE"))
 
             elif mode == "franquias":
+                # --- Robust franquia extraction using regex to find ALL "Label: Value" pairs ---
+                # Extract Veículo (Casco) with optional type label like (Reduzida)
                 if "Veículo:" in ls:
                      v_franq = re.search(r'Veículo:\s*([\d\.,]+)\s*(\(.*?\))?', ls)
                      if v_franq:
@@ -117,19 +119,45 @@ class BradescoExtractor(BaseExtractor):
                           label = f"Casco {type_label}".strip()
                           franquias_lista.append(f"{label}: R$ {val}")
 
-                keywords = ["Para-Brisa", "Vidro Traseiro", "Lanternas", "Faróis", "Retrovisores", "Repare Fácil", "Reparo Rápido", "Super Martelinho"]
-                for kw in keywords:
+                # All known franquia labels (MOST SPECIFIC first to avoid substring conflicts)
+                # Each tuple: (keyword_to_search, display_label)
+                franquia_keywords = [
+                    ("Lanternas de LED", "Lanternas de LED"),
+                    ("Lanternas Auxiliares", "Lanternas Auxiliares"),
+                    ("Lanternas", "Lanternas"),
+                    ("Faróis de Xenon", "Faróis de Xenon"),
+                    ("Faróis de Led", "Faróis de LED"),
+                    ("Faróis de LED", "Faróis de LED"),
+                    ("Faróis Auxiliares", "Faróis Auxiliares"),
+                    ("Faróis", "Faróis"),
+                    ("Vidros Laterais", "Vidros Laterais"),
+                    ("Vidro Traseiro", "Vidro Traseiro"),
+                    ("Para-Brisa", "Para-Brisa"),
+                    ("Teto Panorâmico", "Teto Panorâmico"),
+                    ("Teto Solar", "Teto Solar"),
+                    ("Máquina de Vidros", "Máquina de Vidros"),
+                    ("Retrovisores", "Retrovisores"),
+                    ("Troca de Para-choque", "Troca de Para-choque"),
+                    ("Rodas, Pneus e Suspensão", "Rodas/Pneus/Suspensão"),
+                    ("Super Martelinho", "Super Martelinho"),
+                    ("Reparo Rápido", "Reparo Rápido"),
+                    ("Repare Fácil", "Repare Fácil"),
+                ]
+
+                for kw, display in franquia_keywords:
                     if kw in ls:
-                        kw_match = re.search(rf'{re.escape(kw)}.*?\:\s*([\d\.,]+)', ls)
+                        # Check if this specific label was already extracted (avoid duplicates)
+                        if any(display in f for f in franquias_lista):
+                            continue
+                        kw_match = re.search(rf'{re.escape(kw)}\s*:\s*([\d\.,]+)', ls)
                         if kw_match:
-                             # Skip items with zero value (not contracted)
                              val_str = kw_match.group(1).replace(".", "").replace(",", ".")
                              try:
                                  if float(val_str) == 0:
-                                     continue
+                                     continue  # Skip zero-value franquias
                              except ValueError:
                                  pass
-                             franquias_lista.append(f"{kw}: R$ {kw_match.group(1)}")
+                             franquias_lista.append(f"{display}: R$ {kw_match.group(1)}")
 
             elif mode == "premios":
                 if "TOTAL A PAGAR:" in ls:
