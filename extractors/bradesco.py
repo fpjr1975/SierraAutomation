@@ -157,6 +157,16 @@ class BradescoExtractor(BaseExtractor):
                                      continue  # Skip zero-value franquias
                              except ValueError:
                                  pass
+                             # Merge Teto Panorâmico into Teto Solar if same value
+                             if display == "Teto Panorâmico":
+                                 teto_solar_entry = next((f for f in franquias_lista if "Teto Solar" in f), None)
+                                 if teto_solar_entry:
+                                     existing_val = teto_solar_entry.split("R$ ")[-1] if "R$ " in teto_solar_entry else ""
+                                     if existing_val == kw_match.group(1):
+                                         # Same value — merge into single line
+                                         idx = franquias_lista.index(teto_solar_entry)
+                                         franquias_lista[idx] = f"Teto Solar / Panorâmico: R$ {kw_match.group(1)}"
+                                         continue
                              franquias_lista.append(f"{display}: R$ {kw_match.group(1)}")
 
             elif mode == "premios":
