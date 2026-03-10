@@ -202,6 +202,7 @@
         }
     </style>
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/help.css">
 </head>
 <body>
     <div class="mobile-nav">
@@ -230,6 +231,7 @@
                 <a href="/seguranca"><span class="icon">🔒</span> Segurança</a>
                         <div class="section" id="adminSection" style="display:none">Administração</div>
             <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+            <a href="/ajuda"><span class="icon">❓</span> Ajuda</a>
         </nav>
             <div class="sidebar-footer">
                 <div class="sidebar-user"><strong id="sideUser"></strong><br>Sierra Seguros</div>
@@ -250,6 +252,18 @@
             </div>
 
             <div class="content">
+        <div class="help-banner" id="helpBanner">
+          <button class="help-toggle" onclick="toggleHelp()">
+            <span>❓ O que é isso? Como uso?</span>
+            <span class="help-arrow" id="helpArrow">▼</span>
+          </button>
+          <div class="help-content" id="helpContent" style="display:none">
+            <p>📊 O <strong>Painel Gerencial</strong> é a visão executiva do negócio — gráficos, totais e tendências num só lugar.</p>
+            <p>Veja evolução de apólices, prêmios acumulados, ranking de seguradoras e muito mais.</p>
+            <p>Use pra entender pra onde o negócio está indo e tomar decisões com base em dados reais.</p>
+          </div>
+        </div>
+
                 <!-- KPIs -->
                 <div class="kpi-strip">
                     <div class="kpi-item">

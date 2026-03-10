@@ -69,6 +69,7 @@
         .spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--blue-500);border-radius:50%;animation:spin .7s linear infinite}
         @keyframes spin{to{transform:rotate(360deg)}}
     </style>
+    <link rel="stylesheet" href="/static/help.css">
 </head>
 <body>
 <div class="layout">
@@ -94,6 +95,7 @@
             <a href="/seguranca"><span class="icon">🔒</span> Segurança</a>
             <div class="section" id="adminSection" style="display:none">Administração</div>
             <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+            <a href="/ajuda"><span class="icon">❓</span> Ajuda</a>
         </nav>
         <div class="sidebar-footer">
             <div class="sidebar-user"><strong id="userName">—</strong><br>Sierra Seguros</div>
@@ -107,6 +109,18 @@
             <p>Compare seguradoras: menor prêmio pro cliente × maior comissão pro corretor</p>
         </div>
         <div class="content">
+        <div class="help-banner" id="helpBanner">
+          <button class="help-toggle" onclick="toggleHelp()">
+            <span>❓ O que é isso? Como uso?</span>
+            <span class="help-arrow" id="helpArrow">▼</span>
+          </button>
+          <div class="help-content" id="helpContent" style="display:none">
+            <p>⚖️ A <strong>Arbitragem</strong> te mostra o MELHOR NEGÓCIO em cada cotação.</p>
+            <p>Ela cruza preço × comissão × franquia e te mostra: 🏆 o mais barato pro cliente, 💰 o que paga mais comissão, e ⭐ o Sweet Spot (equilíbrio perfeito).</p>
+            <div class="help-tip">💡 O mais barato pro cliente nem sempre é o melhor negócio pra você. Use a Arbitragem pra tomar a decisão certa.</div>
+          </div>
+        </div>
+
             <div class="select-row">
                 <label>Cotação:</label>
                 <select id="cotacaoSelect" onchange="carregarArbitragem()">

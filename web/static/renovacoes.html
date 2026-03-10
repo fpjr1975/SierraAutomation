@@ -140,6 +140,7 @@
         }
     </style>
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/help.css">
 </head>
 <body>
     <div class="mobile-nav">
@@ -168,6 +169,7 @@
                 <a href="/conversor"><span class="icon">📄</span> Conversor PDF</a>
                         <div class="section" id="adminSection" style="display:none">Administração</div>
             <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+            <a href="/ajuda"><span class="icon">❓</span> Ajuda</a>
         </nav>
             <div class="sidebar-footer">
                 <div class="sidebar-user"><strong id="sideUser"></strong><br>Sierra Seguros</div>
@@ -187,7 +189,19 @@
             </div>
         </div>
 
-        <div class="kpi-strip" id="kpis"><div class="loading">Carregando...</div></div>
+        <div class="kpi-strip" id="kpis">
+        <div class="help-banner" id="helpBanner">
+          <button class="help-toggle" onclick="toggleHelp()">
+            <span>❓ O que é isso? Como uso?</span>
+            <span class="help-arrow" id="helpArrow">▼</span>
+          </button>
+          <div class="help-content" id="helpContent" style="display:none">
+            <p>🔄 <strong>Seguros perto de vencer</strong> que precisam ser renovados.</p>
+            <p>Renovação é 70% da receita de uma corretora — perder renovação é perder dinheiro. A lista mostra o que vence em 30, 60 e 90 dias.</p>
+            <div class="help-tip">💡 Entre em contato com o cliente pelo menos 30 dias antes do vencimento pra garantir a renovação.</div>
+          </div>
+        </div>
+<div class="loading">Carregando...</div></div>
 
         <div class="filters">
             <label>Período:</label>

@@ -127,6 +127,7 @@
         }
     </style>
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/help.css">
 </head>
 <body>
     <div class="mobile-nav">
@@ -151,6 +152,7 @@
                 <a href="/conversor" class="active"><span class="icon">📄</span> Conversor PDF</a>
                         <div class="section" id="adminSection" style="display:none">Administração</div>
             <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+            <a href="/ajuda"><span class="icon">❓</span> Ajuda</a>
         </nav>
             <div class="sidebar-footer">
                 <div class="sidebar-user"><strong id="sideUser"></strong><br>Sierra Seguros</div>
@@ -163,6 +165,18 @@
                 <p>Converta orçamentos de qualquer seguradora para o layout Sierra</p>
             </div>
             <div class="content">
+        <div class="help-banner" id="helpBanner">
+          <button class="help-toggle" onclick="toggleHelp()">
+            <span>❓ O que é isso? Como uso?</span>
+            <span class="help-arrow" id="helpArrow">▼</span>
+          </button>
+          <div class="help-content" id="helpContent" style="display:none">
+            <p>📄 O <strong>Conversor</strong> transforma PDFs de orçamento de qualquer seguradora no layout padrão Sierra.</p>
+            <p>Arrasta o PDF, o sistema reconhece a seguradora sozinho e gera um PDF bonito com a marca da Sierra pra mandar pro cliente.</p>
+            <div class="help-tip">💡 Funciona com 17 seguradoras diferentes — se não reconhecer, verifique se o PDF está legível.</div>
+          </div>
+        </div>
+
                 <div class="drop-zone" id="dropZone">
                     <div class="dz-icon">📄</div>
                     <h3>Arraste o PDF aqui ou clique para selecionar</h3>

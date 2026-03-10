@@ -55,6 +55,7 @@
         .msg-wrapper{display:flex;gap:8px;align-items:start}
         .msg-wrapper.user{flex-direction:row-reverse}
     </style>
+    <link rel="stylesheet" href="/static/help.css">
 </head>
 <body>
     <aside class="sidebar">
@@ -79,6 +80,7 @@
             <a href="/gestor" class="active" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
             <div class="section">Sistema</div>
             <a href="/seguranca"><span class="icon">🔒</span> Segurança</a>
+            <a href="/ajuda"><span class="icon">❓</span> Ajuda</a>
         </nav>
         <div class="sidebar-footer">
             <div class="sidebar-user"><strong id="userName">—</strong><br>Sierra Seguros</div>
@@ -87,6 +89,17 @@
     </aside>
 
     <div class="main">
+        <div class="help-banner" id="helpBanner" style="margin:16px 20px 0">
+          <button class="help-toggle" onclick="toggleHelp()">
+            <span>❓ O que é isso? Como uso?</span>
+            <span class="help-arrow" id="helpArrow">▼</span>
+          </button>
+          <div class="help-content" id="helpContent" style="display:none">
+            <p>🧠 O <strong>Gastón</strong> é seu conselheiro de gestão com inteligência artificial.</p>
+            <p>Pergunte qualquer coisa sobre o negócio: "qual seguradora mais vendeu?", "como tá meu faturamento?", "quais clientes estão sem renovar?". Ele consulta o banco de dados ao vivo e responde com números reais.</p>
+            <div class="help-tip">💡 Quanto mais específica a pergunta, melhor a resposta. Ex: "quais clientes têm apólice vencendo em 30 dias?"</div>
+          </div>
+        </div>
         <div class="header">
             <h2>🧠 Gastón — Conselheiro de Gestão</h2>
             <p>IA com acesso aos dados reais da Sierra. Pergunte sobre performance, carteira, estratégia.</p>

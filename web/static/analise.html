@@ -95,6 +95,7 @@
 
         @media(max-width:768px){.sidebar{display:none}.main{margin-left:0;padding:16px}.g2,.g3{grid-template-columns:1fr}.kpi-row{grid-template-columns:repeat(2,1fr)}}
     </style>
+    <link rel="stylesheet" href="/static/help.css">
 </head>
 <body>
 <div class="layout">
@@ -114,6 +115,7 @@
             <a href="/conversor"><span class="icon">📄</span> Conversor PDF</a>
             <div class="section">Administração</div>
             <a href="/seguranca"><span class="icon">🔒</span> Segurança</a>
+            <a href="/ajuda"><span class="icon">❓</span> Ajuda</a>
         </nav>
         <div class="sidebar-footer">
             <div class="sidebar-user"><strong id="sideUser"></strong><br>Sierra Seguros</div>
@@ -121,6 +123,18 @@
         </div>
     </aside>
     <div class="main">
+        <div class="help-banner" id="helpBanner">
+          <button class="help-toggle" onclick="toggleHelp()">
+            <span>❓ O que é isso? Como uso?</span>
+            <span class="help-arrow" id="helpArrow">▼</span>
+          </button>
+          <div class="help-content" id="helpContent" style="display:none">
+            <p>📊 <strong>Análises</strong> detalhadas do seu negócio — gráficos de evolução, comparativos entre períodos e tendências.</p>
+            <p>Use pra entender pra onde o negócio está indo e identificar oportunidades de crescimento.</p>
+            <div class="help-tip">💡 Compare períodos diferentes pra ver se o negócio está crescendo ou precisa de ajustes.</div>
+          </div>
+        </div>
+
         <div id="app"><div class="empty">Carregando...</div></div>
     </div>
 </div>

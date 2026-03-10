@@ -98,14 +98,14 @@ def _load_nova_sessions() -> dict:
                     if isinstance(v, dict):  # valida que cada sessão é um dict
                         sessions[int(k)] = v
                     else:
-                        logger.warning(f"Sessão ignorada (valor inválido) para chat_id={k}")
-                logger.info(f"Sessões carregadas: {len(sessions)} chat(s) ativos")
+                        print(f"⚠️ Sessão ignorada (valor inválido) para chat_id={k}")
+                print(f"📂 Sessões carregadas: {len(sessions)} chat(s) ativos")
                 return sessions
             except Exception as e:
-                logger.error(f"Erro ao processar sessões de {source}: {e}")
+                print(f"❌ Erro ao processar sessões de {source}: {e}")
                 continue
 
-    logger.warning("Nenhum arquivo de sessões válido encontrado — iniciando limpo")
+    print("⚠️ Nenhum arquivo de sessões válido encontrado — iniciando limpo")
     return {}
 
 

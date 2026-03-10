@@ -79,6 +79,7 @@
         .proj-val{font-size:20px;font-weight:700;color:var(--purple-600)}
         .proj-sub{font-size:11px;color:var(--text-3);margin-top:3px}
     </style>
+    <link rel="stylesheet" href="/static/help.css">
 </head>
 <body>
 <div class="layout">
@@ -104,6 +105,7 @@
             <a href="/seguranca"><span class="icon">🔒</span> Segurança</a>
             <div class="section" id="adminSection" style="display:none">Administração</div>
             <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+            <a href="/ajuda"><span class="icon">❓</span> Ajuda</a>
         </nav>
         <div class="sidebar-footer">
             <div class="sidebar-user"><strong id="userName">—</strong><br>Sierra Seguros</div>
@@ -117,6 +119,18 @@
             <p>Comissões esperadas com base nas apólices vigentes</p>
         </div>
         <div class="content">
+        <div class="help-banner" id="helpBanner">
+          <button class="help-toggle" onclick="toggleHelp()">
+            <span>❓ O que é isso? Como uso?</span>
+            <span class="help-arrow" id="helpArrow">▼</span>
+          </button>
+          <div class="help-content" id="helpContent" style="display:none">
+            <p>💰 <strong>Comissões</strong> mostra quanto dinheiro a corretora deveria estar recebendo — por mês, por seguradora e por produtor.</p>
+            <p>O Stress Test simula: "e se uma seguradora parar de operar?" — pra você nunca ser pego de surpresa.</p>
+            <div class="help-tip">💡 Use o Stress Test periodicamente pra garantir que sua carteira não depende demais de uma única seguradora.</div>
+          </div>
+        </div>
+
 
             <!-- Cards Resumo -->
             <div class="cards-row">

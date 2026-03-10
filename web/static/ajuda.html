@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vértice — Central de Ajuda</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/help.css">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --bg:#f8f9fb;--card:#fff;--border:#eaecf0;
+            --text:#101828;--text-2:#344054;--text-3:#667085;--text-4:#98a2b3;
+            --blue-900:#1a3a5c;--blue-700:#1a5276;--blue-600:#2471a3;--blue-500:#2980b9;
+            --blue-100:#dbeafe;--blue-50:#eff6ff;
+            --gold-600:#d97706;--gold-100:#fef3c7;
+            --green-600:#059669;--green-100:#d1fae5;--green-50:#ecfdf5;
+            --red-500:#ef4444;--red-100:#fee2e2;
+            --radius:10px;--radius-lg:14px;
+            --shadow-sm:0 1px 2px rgba(0,0,0,.05);
+            --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+        }
+        body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;min-height:100vh}
+        .layout{display:flex;min-height:100vh}
+
+        /* Sidebar */
+        .sidebar{width:240px;background:#fff;border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50}
+        .sidebar-brand{padding:16px 20px 18px;border-bottom:1px solid var(--border);margin-bottom:8px;text-align:center}
+        .sidebar-brand img{height:38px;display:block;margin:0 auto 6px}
+        .sidebar-brand span{font-size:10px;color:var(--text-4);font-weight:600;letter-spacing:.8px;text-transform:uppercase;display:block}
+        .sidebar-nav{flex:1;padding:4px 8px;overflow-y:auto}
+        .sidebar-nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-3);text-decoration:none;font-size:13px;font-weight:500;transition:all .15s;margin-bottom:2px}
+        .sidebar-nav a:hover{background:var(--blue-50);color:var(--blue-700)}
+        .sidebar-nav a.active{background:var(--blue-50);color:var(--blue-700);font-weight:600}
+        .sidebar-nav a .icon{width:18px;text-align:center;font-size:15px}
+        .sidebar-nav .section{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;padding:16px 12px 6px}
+        .sidebar-footer{padding:12px 20px;border-top:1px solid var(--border)}
+        .sidebar-user{font-size:12px;color:var(--text-3)}.sidebar-user strong{color:var(--text);font-weight:600}
+        .btn-logout{background:none;border:none;color:var(--text-4);font-size:11px;cursor:pointer;padding:4px 0;font-family:inherit}
+        .btn-logout:hover{color:var(--red-500)}
+
+        .main{margin-left:240px;flex:1;min-width:0}
+        @media(max-width:768px){.sidebar{transform:translateX(-100%)}.main{margin-left:0}}
+
+        /* Header */
+        .header{padding:24px 32px 0}
+        .header h2{font-size:22px;font-weight:700;letter-spacing:-.5px;color:var(--text)}
+        .header p{font-size:13px;color:var(--text-3);margin-top:4px}
+
+        /* Content */
+        .content{padding:20px 32px 60px;max-width:860px}
+
+        /* Section headers */
+        .section-title{font-size:16px;font-weight:700;color:var(--blue-700);margin:32px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--blue-100);display:flex;align-items:center;gap:8px}
+
+        /* Module cards */
+        .modules-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:8px}
+        @media(max-width:640px){.modules-grid{grid-template-columns:1fr}}
+
+        .module-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;text-decoration:none;color:var(--text);display:block;transition:all .15s;box-shadow:var(--shadow-sm)}
+        .module-card:hover{border-color:var(--blue-500);box-shadow:var(--shadow);transform:translateY(-1px)}
+        .module-card .mc-icon{font-size:22px;margin-bottom:8px;display:block}
+        .module-card .mc-title{font-size:13px;font-weight:700;color:var(--blue-700);margin-bottom:6px}
+        .module-card .mc-desc{font-size:12px;color:var(--text-3);line-height:1.6}
+
+        /* Primeiros Passos */
+        .steps-list{list-style:none;counter-reset:step-counter}
+        .steps-list li{counter-increment:step-counter;display:flex;gap:14px;margin-bottom:16px;align-items:flex-start}
+        .steps-list li::before{content:counter(step-counter);min-width:28px;height:28px;background:var(--blue-700);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:2px}
+        .steps-list .step-body{flex:1}
+        .steps-list .step-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px}
+        .steps-list .step-desc{font-size:13px;color:var(--text-3);line-height:1.6}
+
+        /* FAQ */
+        .faq-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden}
+        .faq-q{padding:14px 18px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-2);display:flex;justify-content:space-between;align-items:center}
+        .faq-q:hover{background:var(--blue-50);color:var(--blue-700)}
+        .faq-arrow{font-size:11px;color:var(--text-4);transition:transform .2s}
+        .faq-a{padding:0 18px 14px;font-size:13px;color:var(--text-3);line-height:1.7;display:none}
+        .faq-a.open{display:block}
+        .faq-arrow.open{transform:rotate(180deg)}
+
+        /* Contact */
+        .contact-card{background:var(--blue-700);color:#fff;border-radius:var(--radius-lg);padding:24px 28px;margin-top:8px}
+        .contact-card h4{font-size:16px;font-weight:700;margin-bottom:8px}
+        .contact-card p{font-size:13px;line-height:1.7;opacity:.9;margin-bottom:14px}
+        .contact-card .contact-items{display:flex;flex-direction:column;gap:8px}
+        .contact-card .contact-item{display:flex;align-items:center;gap:10px;font-size:13px}
+        .contact-card .contact-item a{color:#dbeafe;text-decoration:none}
+        .contact-card .contact-item a:hover{text-decoration:underline}
+
+        /* Tip block */
+        .tip-block{background:var(--gold-100);border:1px solid #fcd34d;border-left:4px solid var(--gold-600);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:#78350f;margin:16px 0;line-height:1.6}
+    </style>
+</head>
+<body>
+<div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <img src="/static/logo-sierra-full.png" alt="Sierra" onerror="this.style.display='none'">
+            <span>Vértice</span>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="section">Principal</div>
+            <a href="/analytics"><span class="icon">📊</span> Painel Gerencial</a>
+            <a href="/dashboard"><span class="icon">🏠</span> Dashboard</a>
+            <a href="/cotacoes"><span class="icon">🧮</span> Nova Cotação</a>
+            <a href="/clientes"><span class="icon">👥</span> Clientes</a>
+            <a href="/apolices"><span class="icon">📋</span> Apólices</a>
+            <div class="section">Inteligência</div>
+            <a href="/arbitragem"><span class="icon">⚖️</span> Arbitragem</a>
+            <a href="/comissoes"><span class="icon">💰</span> Comissões</a>
+            <div class="section">Ferramentas</div>
+            <a href="/renovacoes"><span class="icon">🔄</span> Renovações</a>
+            <a href="/conversor"><span class="icon">📄</span> Conversor PDF</a>
+            <div class="section">Sistema</div>
+            <a href="/seguranca"><span class="icon">🔒</span> Segurança</a>
+            <div class="section" id="adminSection" style="display:none">Administração</div>
+            <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+            <a href="/ajuda" class="active"><span class="icon">❓</span> Ajuda</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user"><strong id="userName">—</strong><br>Sierra Seguros</div>
+            <button class="btn-logout" onclick="logout()">Sair →</button>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="main">
+        <div class="header">
+            <h2>❓ Central de Ajuda</h2>
+            <p>Tudo que você precisa saber pra usar o Vértice com facilidade</p>
+        </div>
+
+        <div class="content">
+
+            <!-- ══════════════════════════════════════
+                 PRIMEIROS PASSOS
+            ══════════════════════════════════════ -->
+            <div class="section-title">🚀 Primeiros Passos</div>
+            <p style="font-size:13px;color:var(--text-3);margin-bottom:16px">Nunca usou o Vértice antes? Siga esses 3 passos e você já estará operando!</p>
+
+            <ul class="steps-list">
+                <li>
+                    <div class="step-body">
+                        <div class="step-title">Faça o login</div>
+                        <div class="step-desc">Use o e-mail e senha que você recebeu do administrador. Na tela inicial, clique em "Entrar". Se esqueceu a senha, fale com o admin da sua corretora.</div>
+                    </div>
+                </li>
+                <li>
+                    <div class="step-body">
+                        <div class="step-title">Explore o Painel Gerencial</div>
+                        <div class="step-desc">Após entrar, você será levado ao Painel. Olhe os números: apólices ativas, renovações pendentes, prêmio do mês. É sua visão geral do negócio — como o cockpit de um avião.</div>
+                    </div>
+                </li>
+                <li>
+                    <div class="step-body">
+                        <div class="step-title">Faça sua primeira cotação</div>
+                        <div class="step-desc">Clique em "Nova Cotação" no menu. Arraste o documento do veículo e do condutor, coloque o CEP e mande cotar. Em alguns segundos você tem preços de até 17 seguradoras ao mesmo tempo!</div>
+                    </div>
+                </li>
+            </ul>
+
+            <div class="tip-block">
+                💡 <strong>Dica de ouro:</strong> Cada tela tem um botão <em>"❓ O que é isso?"</em> no topo. Clique nele pra ver uma explicação rápida daquela página específica.
+            </div>
+
+
+            <!-- ══════════════════════════════════════
+                 MÓDULOS
+            ══════════════════════════════════════ -->
+            <div class="section-title">📦 O que cada módulo faz</div>
+
+            <div class="modules-grid">
+                <a href="/analytics" class="module-card">
+                    <span class="mc-icon">📊</span>
+                    <div class="mc-title">Painel Gerencial</div>
+                    <div class="mc-desc">Visão executiva com gráficos, totais e ranking de seguradoras. Use pra entender o desempenho geral da corretora.</div>
+                </a>
+                <a href="/dashboard" class="module-card">
+                    <span class="mc-icon">🏠</span>
+                    <div class="mc-title">Dashboard</div>
+                    <div class="mc-desc">Visão rápida do dia a dia: apólices ativas, clientes, prêmios e vencimentos próximos. Se algo está vermelho, precisa de atenção.</div>
+                </a>
+                <a href="/cotacoes" class="module-card">
+                    <span class="mc-icon">🧮</span>
+                    <div class="mc-title">Nova Cotação</div>
+                    <div class="mc-desc">Peça orçamento em até 17 seguradoras ao mesmo tempo. Você envia os documentos do cliente e do carro, e o sistema faz o resto.</div>
+                </a>
+                <a href="/clientes" class="module-card">
+                    <span class="mc-icon">👥</span>
+                    <div class="mc-title">Clientes</div>
+                    <div class="mc-desc">Sua carteira de clientes completa. Busca por nome, CPF ou telefone. Veja apólices e histórico de cada cliente.</div>
+                </a>
+                <a href="/apolices" class="module-card">
+                    <span class="mc-icon">📋</span>
+                    <div class="mc-title">Apólices</div>
+                    <div class="mc-desc">Todas as apólices em um lugar. As perto do vencimento ficam destacadas. Filtre por seguradora, status ou período.</div>
+                </a>
+                <a href="/renovacoes" class="module-card">
+                    <span class="mc-icon">🔄</span>
+                    <div class="mc-title">Renovações</div>
+                    <div class="mc-desc">Pipeline de renovações: o que vence em 30, 60 e 90 dias. Renovação é 70% da receita — não deixe escapar!</div>
+                </a>
+                <a href="/arbitragem" class="module-card">
+                    <span class="mc-icon">⚖️</span>
+                    <div class="mc-title">Arbitragem</div>
+                    <div class="mc-desc">Compara cotações e mostra: 🏆 mais barato, 💰 maior comissão, ⭐ Sweet Spot (equilíbrio perfeito). O mais barato nem sempre é o melhor pra você!</div>
+                </a>
+                <a href="/comissoes" class="module-card">
+                    <span class="mc-icon">💰</span>
+                    <div class="mc-title">Comissões</div>
+                    <div class="mc-desc">Controle do que a corretora deve receber. Stress Test simula o impacto se uma seguradora parar de operar.</div>
+                </a>
+                <a href="/conversor" class="module-card">
+                    <span class="mc-icon">📄</span>
+                    <div class="mc-title">Conversor PDF</div>
+                    <div class="mc-desc">Transforma PDFs de qualquer seguradora no layout padrão Sierra. Reconhece a seguradora automaticamente.</div>
+                </a>
+                <a href="/seguranca" class="module-card">
+                    <span class="mc-icon">🔒</span>
+                    <div class="mc-title">Segurança</div>
+                    <div class="mc-desc">Controla quem acessa o sistema. Níveis: Admin, Corretor, Operacional. Só admins adicionam ou removem usuários.</div>
+                </a>
+                <a href="/gestor" class="module-card" id="gestorCard" style="display:none">
+                    <span class="mc-icon">🧠</span>
+                    <div class="mc-title">Gastón IA</div>
+                    <div class="mc-desc">Seu conselheiro de gestão com IA. Pergunte qualquer coisa: faturamento, ranking de seguradoras, clientes sem renovar. Respostas em tempo real com dados do sistema.</div>
+                </a>
+            </div>
+
+
+            <!-- ══════════════════════════════════════
+                 PERGUNTAS FREQUENTES
+            ══════════════════════════════════════ -->
+            <div class="section-title">🙋 Perguntas Frequentes</div>
+
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    Esqueci minha senha. O que faço?
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a">
+                    Fale com o administrador da sua corretora. Só ele consegue redefinir senhas. Vá em <strong>Segurança → Usuários</strong> e o admin pode alterar sua senha por lá.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    Por que algumas seguradoras não aparecem nas cotações?
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a">
+                    Algumas seguradoras têm requisitos específicos — por exemplo, não aceitam certos tipos de veículo, CPF com restrições ou CEPs de risco. Se uma seguradora não aparecer, é porque ela recusou a cotação com os dados informados. Verifique se todos os campos estão corretos.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    Posso usar o sistema pelo celular?
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a">
+                    Sim! O Vértice funciona no navegador do celular. Algumas telas são otimizadas pra tela grande, então se puder, prefira um computador ou tablet pra uma experiência melhor — principalmente nas cotações e relatórios.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    O que significa "Sweet Spot" na Arbitragem?
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a">
+                    Sweet Spot (⭐) é a cotação com o melhor equilíbrio entre preço pro cliente e comissão pra você. Nem o mais barato (que pode ter comissão baixa), nem o mais caro (que pode afastar o cliente) — é o ponto ideal de negócio.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    Como funciona o Conversor PDF?
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a">
+                    Você arrasta (ou seleciona) o PDF de orçamento que recebeu de uma seguradora. O sistema reconhece automaticamente de qual seguradora é (funciona com 17 seguradoras). Aí gera um PDF novo com o layout e a marca da Sierra, pronto pra enviar pro cliente.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    O que é o Stress Test de Comissões?
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a">
+                    É uma simulação de cenário: "e se a seguradora X parar de operar amanhã? Quanto eu perderia de comissão?". Use pra garantir que sua carteira não depende demais de uma única seguradora — diversificação é segurança no negócio!
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    Meus dados ficam salvos mesmo se fechar o navegador?
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a">
+                    Sim! Todos os dados ficam salvos no servidor da Sierra. Você pode fechar o navegador, desligar o computador e tudo estará lá quando voltar. O único dado que não persiste é a sessão de login — você precisará logar novamente.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    Posso ter mais de um usuário acessando ao mesmo tempo?
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a">
+                    Sim! Vários usuários podem usar o sistema simultaneamente, cada um com seu login e senha próprios. O administrador cadastra os usuários em <strong>Segurança → Usuários</strong> e define o nível de acesso de cada um.
+                </div>
+            </div>
+
+
+            <!-- ══════════════════════════════════════
+                 CONTATO / SUPORTE
+            ══════════════════════════════════════ -->
+            <div class="section-title">📞 Precisa de ajuda?</div>
+
+            <div class="contact-card">
+                <h4>🤝 Fale com a equipe Sierra</h4>
+                <p>Se travou em alguma tela, encontrou algo estranho ou quer sugerir uma melhoria — nos chame! Estamos aqui pra deixar o Vértice cada vez melhor pra você.</p>
+                <div class="contact-items">
+                    <div class="contact-item">
+                        <span>💬</span>
+                        <span>WhatsApp / Telegram: fale com o responsável técnico da sua corretora</span>
+                    </div>
+                    <div class="contact-item">
+                        <span>📧</span>
+                        <span>Email: suporte da Sierra Seguros</span>
+                    </div>
+                    <div class="contact-item">
+                        <span>⏱️</span>
+                        <span>Horário de atendimento: Segunda a Sexta, das 9h às 18h (Brasília)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top:20px;font-size:12px;color:var(--text-4);text-align:center">
+                Vértice — Sierra Seguros &nbsp;·&nbsp; Versão 1.0
+            </div>
+
+        </div><!-- /content -->
+    </div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+const token = localStorage.getItem('sierra_token');
+if (!token) location.href = '/';
+
+function logout() {
+    localStorage.clear();
+    location.href = '/';
+}
+
+// Show user name
+const u = localStorage.getItem('sierra_user');
+if (u) try { document.getElementById('userName').textContent = JSON.parse(u).nome || JSON.parse(u).email || '—'; } catch(e){}
+
+// Show Gastón if admin
+const ur = localStorage.getItem('sierra_user');
+if (ur) try {
+    const user = JSON.parse(ur);
+    if (user.role === 'admin') {
+        document.getElementById('gestorLink') && (document.getElementById('gestorLink').style.display = 'flex');
+        document.getElementById('adminSection') && (document.getElementById('adminSection').style.display = 'block');
+        document.getElementById('gestorCard') && (document.getElementById('gestorCard').style.display = 'block');
+    }
+} catch(e){}
+
+// FAQ toggle
+function toggleFaq(el) {
+    const ans = el.nextElementSibling;
+    const arrow = el.querySelector('.faq-arrow');
+    const isOpen = ans.classList.contains('open');
+    // Close all
+    document.querySelectorAll('.faq-a').forEach(a => a.classList.remove('open'));
+    document.querySelectorAll('.faq-arrow').forEach(a => { a.textContent = '▼'; a.classList.remove('open'); });
+    // Open clicked if was closed
+    if (!isOpen) {
+        ans.classList.add('open');
+        arrow.textContent = '▲';
+        arrow.classList.add('open');
+    }
+}
+</script>
+</body>
+</html>

@@ -95,6 +95,7 @@
         .data-preview .dp-label{color:var(--text-4);font-weight:500}
         .data-preview .dp-value{color:var(--text);font-weight:500}
     </style>
+    <link rel="stylesheet" href="/static/help.css">
 </head>
 <body>
 <div class="layout">
@@ -120,6 +121,7 @@
             <a href="/seguranca"><span class="icon">🔒</span> Segurança</a>
                     <div class="section" id="adminSection" style="display:none">Administração</div>
             <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+            <a href="/ajuda"><span class="icon">❓</span> Ajuda</a>
         </nav>
         <div class="sidebar-footer">
             <div class="sidebar-user"><strong id="userName">—</strong><br>Sierra Seguros</div>
@@ -133,6 +135,19 @@
             <p>Envie CNH + CRVL + CEP → calcula no Agilizador → gera PDF Sierra</p>
         </div>
         <div class="content">
+        <div class="help-banner" id="helpBanner">
+          <button class="help-toggle" onclick="toggleHelp()">
+            <span>❓ O que é isso? Como uso?</span>
+            <span class="help-arrow" id="helpArrow">▼</span>
+          </button>
+          <div class="help-content" id="helpContent" style="display:none">
+            <p>🧮 Aqui você faz <strong>cotações de seguro</strong> — é como pedir orçamento em várias lojas ao mesmo tempo.</p>
+            <p>Você coloca os dados do cliente e do carro, e o sistema busca preços em até 17 seguradoras de uma vez.</p>
+            <p>Depois é só escolher a melhor opção e gerar o PDF pra mandar pro cliente.</p>
+            <div class="help-tip">💡 Dica: preencha todos os campos corretamente pra receber mais cotações válidas.</div>
+          </div>
+        </div>
+
             <!-- Steps -->
             <div class="steps">
                 <div class="step active" id="step1"><span class="step-num">1</span>Documentos</div>

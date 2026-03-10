@@ -138,6 +138,11 @@ async def comissoes_page():
     return _serve("comissoes.html")
 
 
+@app.get("/ajuda", response_class=HTMLResponse)
+async def ajuda_page():
+    return _serve("ajuda.html")
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "sierra-web"}

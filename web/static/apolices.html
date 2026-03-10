@@ -140,6 +140,7 @@
             .card{overflow-x:auto;-webkit-overflow-scrolling:touch}
         }
     </style>
+    <link rel="stylesheet" href="/static/help.css">
 </head>
 <body>
 <div class="mobile-nav">
@@ -172,6 +173,7 @@
             <a href="/seguranca"><span class="icon">🔒</span> Segurança</a>
                     <div class="section" id="adminSection" style="display:none">Administração</div>
             <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+            <a href="/ajuda"><span class="icon">❓</span> Ajuda</a>
         </nav>
         <div class="sidebar-footer">
             <div class="sidebar-user"><strong id="sideUser"></strong><br>Sierra Seguros</div>
@@ -189,6 +191,18 @@
         </div>
 
         <div class="content">
+        <div class="help-banner" id="helpBanner">
+          <button class="help-toggle" onclick="toggleHelp()">
+            <span>❓ O que é isso? Como uso?</span>
+            <span class="help-arrow" id="helpArrow">▼</span>
+          </button>
+          <div class="help-content" id="helpContent" style="display:none">
+            <p>📋 <strong>Todas as apólices</strong> da corretora em um lugar só.</p>
+            <p>As que estão perto de vencer ficam destacadas em amarelo (30 dias) ou vermelho (vencidas). Pode filtrar por seguradora, status ou período.</p>
+            <div class="help-tip">💡 Fique de olho nas marcadas em amarelo — são as que precisam de renovação em breve.</div>
+          </div>
+        </div>
+
             <!-- Legenda -->
             <div class="legend">
                 <div class="legend-item"><div class="legend-dot dot-yellow"></div><span>Vencendo em 30 dias</span></div>

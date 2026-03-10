@@ -191,6 +191,7 @@
         }
     </style>
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/help.css">
 </head>
 <body>
     <div class="mobile-nav">
@@ -218,6 +219,7 @@
                 <a href="/seguranca"><span class="icon">🔒</span> Segurança</a>
                         <div class="section" id="adminSection" style="display:none">Administração</div>
             <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+            <a href="/ajuda"><span class="icon">❓</span> Ajuda</a>
         </nav>
             <div class="sidebar-footer">
                 <div class="sidebar-user"><strong id="sideUser"></strong><br>Sierra Seguros</div>
@@ -226,6 +228,17 @@
         </aside>
         <div class="main">
             <div class="header"><div><h2 id="pageTitle">Clientes</h2></div></div>
+        <div class="help-banner" id="helpBanner" style="margin:12px 24px 0">
+          <button class="help-toggle" onclick="toggleHelp()">
+            <span>❓ O que é isso? Como uso?</span>
+            <span class="help-arrow" id="helpArrow">▼</span>
+          </button>
+          <div class="help-content" id="helpContent" style="display:none">
+            <p>👥 <strong>Lista de todos os seus clientes</strong> em um lugar só.</p>
+            <p>Pode buscar por nome, CPF ou telefone. Clicando no cliente, você vê todas as apólices dele, histórico de cotações e dados de contato.</p>
+            <div class="help-tip">💡 Mantenha os dados dos clientes atualizados — facilita na hora de renovar o seguro.</div>
+          </div>
+        </div>
             <div class="content" id="app"></div>
         </div>
     </div>

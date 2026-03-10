@@ -85,6 +85,7 @@
 
         @media(max-width:768px){.sidebar{display:none}.main{margin-left:0;padding:16px}.kpi-row{grid-template-columns:repeat(2,1fr)}}
     </style>
+    <link rel="stylesheet" href="/static/help.css">
 </head>
 <body>
 <div class="layout">
@@ -106,6 +107,7 @@
             <a href="/seguranca" class="active"><span class="icon">🔒</span> Segurança</a>
                     <div class="section" id="adminSection" style="display:none">Administração</div>
             <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+            <a href="/ajuda"><span class="icon">❓</span> Ajuda</a>
         </nav>
         <div class="sidebar-footer">
             <div class="sidebar-user"><strong id="sideUser"></strong><br>Sierra Seguros</div>
@@ -113,6 +115,18 @@
         </div>
     </aside>
     <div class="main">
+        <div class="help-banner" id="helpBanner">
+          <button class="help-toggle" onclick="toggleHelp()">
+            <span>❓ O que é isso? Como uso?</span>
+            <span class="help-arrow" id="helpArrow">▼</span>
+          </button>
+          <div class="help-content" id="helpContent" style="display:none">
+            <p>🔒 <strong>Segurança</strong> controla quem acessa o sistema e o que cada pessoa pode ver.</p>
+            <p>Cada pessoa tem um nível: Admin (vê tudo), Corretor (vê cotações e clientes), Operacional (vê o básico). Só admins podem adicionar ou remover pessoas.</p>
+            <div class="help-tip">💡 Nunca compartilhe sua senha. Se alguém sair da empresa, remova o acesso imediatamente.</div>
+          </div>
+        </div>
+
         <h2>🔒 Segurança</h2>
         <div id="kpis"></div>
         <div class="tabs" id="tabBar">
