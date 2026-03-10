@@ -170,7 +170,7 @@ class App(TkinterDnD.Tk):
         self.scroll_files.grid(row=2, column=0, sticky="nsew")
 
     def setup_footer(self):
-        self.footer_frame = ctk.CTkFrame(self, fg_color=self.col_panel, height=65, corner_radius=0)
+        self.footer_frame = ctk.CTkFrame(self, fg_color=self.col_panel, height=60, corner_radius=0)
         self.footer_frame.grid(row=2, column=0, sticky="ew")
         self.footer_frame.grid_propagate(False)
         
@@ -181,25 +181,16 @@ class App(TkinterDnD.Tk):
         self.footer_inner = ctk.CTkFrame(self.footer_frame, fg_color="transparent")
         self.footer_inner.pack(fill="both", expand=True, padx=20)
         
-        # Left: Global Status
-        self.lbl_global_status = ctk.CTkLabel(self.footer_inner, text="Aguardando arquivos...", text_color="gray", font=("Segoe UI", 11))
-        self.lbl_global_status.pack(side="left", pady=10)
+        # Use grid for fixed positioning (prevents button resize)
+        self.footer_inner.grid_columnconfigure(0, weight=1)  # Status expands
+        self.footer_inner.grid_columnconfigure(1, weight=0)  # Limpar fixed
+        self.footer_inner.grid_columnconfigure(2, weight=0)  # Processar fixed
         
-        # Right: Buttons
-        self.btn_run = ctk.CTkButton(
-            self.footer_inner,
-            text="PROCESSAR ORÇAMENTOS ➤",
-            command=self.start_processing,
-            fg_color=self.col_primary,
-            hover_color=self.col_primary_hover,
-            corner_radius=8,
-            height=38,
-            width=220,
-            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
-            state="disabled"
-        )
-        self.btn_run.pack(side="right", pady=10)
-
+        # Left: Global Status
+        self.lbl_global_status = ctk.CTkLabel(self.footer_inner, text="Aguardando arquivos...", text_color="gray", font=("Segoe UI", 11), anchor="w")
+        self.lbl_global_status.grid(row=0, column=0, sticky="w", pady=10)
+        
+        # Right: Limpar
         self.btn_clear = ctk.CTkButton(
             self.footer_inner, 
             text="Limpar", 
@@ -212,7 +203,22 @@ class App(TkinterDnD.Tk):
             height=34,
             font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold")
         )
-        self.btn_clear.pack(side="right", pady=10, padx=10)
+        self.btn_clear.grid(row=0, column=1, padx=(0, 10), pady=10)
+
+        # Right: Processar
+        self.btn_run = ctk.CTkButton(
+            self.footer_inner,
+            text="PROCESSAR ➤",
+            command=self.start_processing,
+            fg_color=self.col_primary,
+            hover_color=self.col_primary_hover,
+            corner_radius=8,
+            height=38,
+            width=160,
+            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
+            state="disabled"
+        )
+        self.btn_run.grid(row=0, column=2, pady=10)
 
     # --- Logic ---
 
