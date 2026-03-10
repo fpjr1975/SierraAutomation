@@ -47,7 +47,7 @@ class App(TkinterDnD.Tk):
 
         # --- Window Config ---
         self.title("Sierra Automação - Processamento de Orçamentos")
-        self.geometry("750x800")
+        self.geometry("720x680")
         
         # Colors (Sierra Light Theme)
         self.col_bg = "#f5f7fa"        # Very light grey/blue ish
@@ -118,18 +118,19 @@ class App(TkinterDnD.Tk):
 
     def setup_content(self):
         self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.content_frame.grid(row=1, column=0, sticky="nsew", padx=30, pady=20)
+        self.content_frame.grid(row=1, column=0, sticky="nsew", padx=24, pady=(10, 8))
         
         self.content_frame.grid_columnconfigure(0, weight=1)
         self.content_frame.grid_rowconfigure(0, weight=0) # Drop
-        self.content_frame.grid_rowconfigure(1, weight=1) # List
+        self.content_frame.grid_rowconfigure(1, weight=0) # Label
+        self.content_frame.grid_rowconfigure(2, weight=1) # List
 
         # Styled Drop Area
         self.drop_frame = ctk.CTkFrame(self.content_frame, fg_color=self.col_panel, corner_radius=15, border_width=2, border_color="#dce1e8")
-        self.drop_frame.grid(row=0, column=0, sticky="ew", pady=(0, 20))
+        self.drop_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
         
-        self.lbl_drop_icon = ctk.CTkLabel(self.drop_frame, text="☁️", font=("Segoe UI Emoji", 48))
-        self.lbl_drop_icon.pack(pady=(25, 5))
+        self.lbl_drop_icon = ctk.CTkLabel(self.drop_frame, text="☁️", font=("Segoe UI Emoji", 36))
+        self.lbl_drop_icon.pack(pady=(15, 3))
         
         self.lbl_drop_text = ctk.CTkLabel(
             self.drop_frame, 
@@ -147,14 +148,14 @@ class App(TkinterDnD.Tk):
             text_color="#333333",
             hover_color="#d0d0d0",
             corner_radius=8,
-            height=36,
-            font=ctk.CTkFont(family="Segoe UI", size=14, weight="normal")
+            height=32,
+            font=ctk.CTkFont(family="Segoe UI", size=13, weight="normal")
         )
-        self.btn_select_manual.pack(pady=(10, 25))
+        self.btn_select_manual.pack(pady=(8, 15))
 
         # File List Heading
-        self.lbl_files = ctk.CTkLabel(self.content_frame, text="ARQUIVOS SELECIONADOS", font=("Segoe UI", 12, "bold"), text_color=self.col_text_light)
-        self.lbl_files.grid(row=1, column=0, sticky="w", pady=(0, 5))
+        self.lbl_files = ctk.CTkLabel(self.content_frame, text="ARQUIVOS SELECIONADOS", font=("Segoe UI", 11, "bold"), text_color=self.col_text_light)
+        self.lbl_files.grid(row=1, column=0, sticky="w", pady=(0, 3))
 
         # Scrollable List
         self.scroll_files = ctk.CTkScrollableFrame(
@@ -169,7 +170,7 @@ class App(TkinterDnD.Tk):
         self.scroll_files.grid(row=2, column=0, sticky="nsew")
 
     def setup_footer(self):
-        self.footer_frame = ctk.CTkFrame(self, fg_color=self.col_panel, height=80, corner_radius=0)
+        self.footer_frame = ctk.CTkFrame(self, fg_color=self.col_panel, height=65, corner_radius=0)
         self.footer_frame.grid(row=2, column=0, sticky="ew")
         self.footer_frame.grid_propagate(False)
         
@@ -178,11 +179,11 @@ class App(TkinterDnD.Tk):
         line.pack(fill="x", side="top")
         
         self.footer_inner = ctk.CTkFrame(self.footer_frame, fg_color="transparent")
-        self.footer_inner.pack(fill="both", expand=True, padx=30)
+        self.footer_inner.pack(fill="both", expand=True, padx=20)
         
         # Left: Global Status
-        self.lbl_global_status = ctk.CTkLabel(self.footer_inner, text="Aguardando arquivos...", text_color="gray", font=("Segoe UI", 12))
-        self.lbl_global_status.pack(side="left", pady=20)
+        self.lbl_global_status = ctk.CTkLabel(self.footer_inner, text="Aguardando arquivos...", text_color="gray", font=("Segoe UI", 11))
+        self.lbl_global_status.pack(side="left", pady=10)
         
         # Right: Buttons
         self.btn_run = ctk.CTkButton(
@@ -192,12 +193,12 @@ class App(TkinterDnD.Tk):
             fg_color=self.col_primary,
             hover_color=self.col_primary_hover,
             corner_radius=8,
-            height=45,
+            height=38,
             width=220,
-            font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
             state="disabled"
         )
-        self.btn_run.pack(side="right", pady=15)
+        self.btn_run.pack(side="right", pady=10)
 
         self.btn_clear = ctk.CTkButton(
             self.footer_inner, 
@@ -207,11 +208,11 @@ class App(TkinterDnD.Tk):
             text_color="#c62828",
             hover_color="#ffcdd2",
             corner_radius=8,
-            width=100,
-            height=40,
-            font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold")
+            width=80,
+            height=34,
+            font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold")
         )
-        self.btn_clear.pack(side="right", pady=15, padx=15)
+        self.btn_clear.pack(side="right", pady=10, padx=10)
 
     # --- Logic ---
 
