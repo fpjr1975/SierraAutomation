@@ -1,9 +1,16 @@
 """
-sync_agilizador.py — Importa histórico de cotações do Agilizador (multicalculo.net)
+sync_agilizador.py — Importa histórico de cotações do Agilizador (aggilizador.com.br / multicalculo.net)
 para o banco de dados PostgreSQL do Projeto Vértice/Sierra.
 
 Uso:
     /root/sierra/venv/bin/python sync_agilizador.py [--limit N] [--debug]
+
+Bugs corrigidos (v2):
+  1. _classify: mais restritivo — só classifica busca/v2 como lista real
+  2. parse_cotacao_item: usa idIntegracao (não id) como UUID p/ versoes
+  3. Bug com dict como nome: sanitiza segurado_nome antes de usar
+  4. Paginação: busca/v2 itera páginas até obter N cotações
+  5. Filtra só ramo=31 (auto) para importar em veiculos
 """
 
 import asyncio
@@ -22,6 +29,7 @@ import psycopg2.extras
 from playwright.async_api import async_playwright, Page, Response
 
 # ── Logging ──────────────────────────────────────────────────────────────────
+os.makedirs("/root/sierra/debug", exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -40,6 +48,9 @@ AGG_SENHA = "Tronca2660&&"
 DB_DSN = "postgresql://sierra:SierraDB2026!!@localhost/sierra_db"
 CORRETORA_ID = 1
 DEBUG_DIR = "/root/sierra/debug"
+
+# Endpoint real de listagem (padrão de URL)
+BUSCA_V2_BASE = "https://api.multicalculo.net/calculo/negocio/busca/v2"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -61,18 +72,41 @@ def parse_premio(valor) -> Optional[float]:
 
 
 def parse_date(s) -> Optional[date]:
-    """Converte string de data para date. Aceita dd/mm/yyyy, yyyy-mm-dd, etc."""
+    """Converte string de data para date."""
     if not s:
         return None
     if isinstance(s, date):
         return s
     s = str(s).strip()
-    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f"):
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f",
+                "%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ"):
         try:
-            return datetime.strptime(s[:len(fmt)], fmt).date()
+            return datetime.strptime(s[:19] if "T" in s else s, fmt.split("Z")[0] if "Z" in fmt else fmt).date()
         except:
             continue
+    # Tenta extrair data de ISO string
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})", s)
+    if m:
+        try:
+            return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        except:
+            pass
     return None
+
+
+def safe_str(val, default="") -> str:
+    """Converte valor para string segura — nunca retorna um dict."""
+    if val is None:
+        return default
+    if isinstance(val, dict):
+        # Tenta extrair nome de dentro do dict
+        for key in ("nome", "nomeCompleto", "nomeSegurado", "name"):
+            if key in val and val[key]:
+                return str(val[key]).strip()
+        return default
+    if isinstance(val, (list, set)):
+        return default
+    return str(val).strip()
 
 
 # ── DB ────────────────────────────────────────────────────────────────────────
@@ -81,12 +115,12 @@ def get_db():
     return psycopg2.connect(DB_DSN)
 
 
-def upsert_cliente(cur, nome: str, cpf_cnpj: str = None, nascimento=None, telefone: str = None) -> int:
+def upsert_cliente(cur, nome: str, cpf_cnpj: str = None, telefone: str = None) -> int:
     """Insere ou retorna cliente existente. Retorna cliente_id."""
     nome = (nome or "").strip()
     cpf_cnpj = re.sub(r"\D", "", cpf_cnpj or "") or None
 
-    # Tenta encontrar por CPF primeiro
+    # Busca por CPF
     if cpf_cnpj:
         cur.execute(
             "SELECT id FROM clientes WHERE corretora_id = %s AND cpf_cnpj = %s",
@@ -96,8 +130,8 @@ def upsert_cliente(cur, nome: str, cpf_cnpj: str = None, nascimento=None, telefo
         if row:
             return row[0]
 
-    # Tenta por nome exato (fallback)
-    if not cpf_cnpj:
+    # Busca por nome (fallback sem CPF)
+    if nome and not cpf_cnpj:
         cur.execute(
             "SELECT id FROM clientes WHERE corretora_id = %s AND LOWER(nome) = LOWER(%s) LIMIT 1",
             (CORRETORA_ID, nome)
@@ -107,24 +141,33 @@ def upsert_cliente(cur, nome: str, cpf_cnpj: str = None, nascimento=None, telefo
             return row[0]
 
     # Insere novo
-    nasc = parse_date(nascimento)
-    cur.execute(
-        """
-        INSERT INTO clientes (corretora_id, nome, cpf_cnpj, nascimento, telefone, created_at, updated_at, status)
-        VALUES (%s, %s, %s, %s, %s, NOW(), NOW(), 'ativo')
-        ON CONFLICT (corretora_id, cpf_cnpj) DO UPDATE SET nome = EXCLUDED.nome, updated_at = NOW()
-        RETURNING id
-        """,
-        (CORRETORA_ID, nome, cpf_cnpj, nasc, telefone)
-    )
+    if cpf_cnpj:
+        cur.execute(
+            """
+            INSERT INTO clientes (corretora_id, nome, cpf_cnpj, telefone, created_at, updated_at, status)
+            VALUES (%s, %s, %s, %s, NOW(), NOW(), 'ativo')
+            ON CONFLICT (corretora_id, cpf_cnpj) DO UPDATE SET nome = EXCLUDED.nome, updated_at = NOW()
+            RETURNING id
+            """,
+            (CORRETORA_ID, nome, cpf_cnpj, telefone)
+        )
+    else:
+        cur.execute(
+            """
+            INSERT INTO clientes (corretora_id, nome, telefone, created_at, updated_at, status)
+            VALUES (%s, %s, %s, NOW(), NOW(), 'ativo')
+            RETURNING id
+            """,
+            (CORRETORA_ID, nome, telefone)
+        )
     return cur.fetchone()[0]
 
 
 def upsert_veiculo(cur, cliente_id: int, placa: str, marca_modelo: str = None,
                    ano_fabricacao: str = None, ano_modelo: str = None,
-                   chassi: str = None, combustivel: str = None) -> int:
+                   chassi: str = None) -> int:
     """Insere ou retorna veículo. Retorna veiculo_id."""
-    placa = clean_placa(placa)
+    placa = clean_placa(placa or "")
 
     if placa:
         cur.execute(
@@ -138,14 +181,14 @@ def upsert_veiculo(cur, cliente_id: int, placa: str, marca_modelo: str = None,
     cur.execute(
         """
         INSERT INTO veiculos (corretora_id, cliente_id, placa, marca_modelo,
-                              ano_fabricacao, ano_modelo, chassi, combustivel, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                              ano_fabricacao, ano_modelo, chassi, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
         RETURNING id
         """,
         (CORRETORA_ID, cliente_id, placa or None, marca_modelo,
          str(ano_fabricacao) if ano_fabricacao else None,
          str(ano_modelo) if ano_modelo else None,
-         chassi, combustivel)
+         chassi)
     )
     return cur.fetchone()[0]
 
@@ -153,7 +196,6 @@ def upsert_veiculo(cur, cliente_id: int, placa: str, marca_modelo: str = None,
 def cotacao_exists(cur, agilizador_uuid: str = None, veiculo_id: int = None,
                    created_at_date=None) -> Optional[int]:
     """Verifica se cotação já existe. Retorna id ou None."""
-    # 1) Por UUID do Agilizador na URL
     if agilizador_uuid:
         cur.execute(
             "SELECT id FROM cotacoes WHERE agilizador_url LIKE %s LIMIT 1",
@@ -163,7 +205,6 @@ def cotacao_exists(cur, agilizador_uuid: str = None, veiculo_id: int = None,
         if row:
             return row[0]
 
-    # 2) Por veiculo + data (mesmo dia)
     if veiculo_id and created_at_date:
         cur.execute(
             """
@@ -201,18 +242,18 @@ def insert_cotacao(cur, cliente_id: int, veiculo_id: int, agilizador_url: str,
 def insert_resultado(cur, cotacao_id: int, seguradora: str, premio: float,
                      franquia: float = None, plano: str = None,
                      numero_cotacao: str = None, coberturas: str = None,
-                     parcelas: str = None, mensagem: str = None):
+                     mensagem: str = None):
     """Insere resultado de seguradora. ON CONFLICT DO NOTHING."""
     cur.execute(
         """
         INSERT INTO cotacao_resultados
             (cotacao_id, corretora_id, seguradora, premio, franquia, plano,
-             numero_cotacao, mensagem, parcelas, status, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'ok', NOW())
+             numero_cotacao, mensagem, status, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'ok', NOW())
         ON CONFLICT DO NOTHING
         """,
         (cotacao_id, CORRETORA_ID, seguradora, premio, franquia, plano,
-         numero_cotacao, coberturas or mensagem, parcelas, )
+         numero_cotacao, coberturas or mensagem)
     )
 
 
@@ -246,102 +287,92 @@ async def fechar_modais(page: Page):
         pass
 
 
-async def login(page: Page):
-    """Faz login no Agilizador."""
-    logger.info(f"Navegando para login: {AGG_URL}/login")
-    await page.goto(f"{AGG_URL}/login", timeout=60000)
-    await page.wait_for_load_state("networkidle")
+async def login(page: Page, retry: bool = True):
+    """Faz login no Agilizador. Tenta 2x se falhar."""
+    async def _do_login():
+        logger.info(f"Navegando para login: {AGG_URL}/login")
+        await page.goto(f"{AGG_URL}/login", timeout=60000)
+        await page.wait_for_load_state("networkidle")
 
-    await page.fill('input[formcontrolname="email"]', AGG_EMAIL)
-    await asyncio.sleep(0.5)
-    await page.fill('input[formcontrolname="senha"]', AGG_SENHA)
-    await asyncio.sleep(0.5)
-    await page.click('button:has-text("Entrar")')
+        await page.fill('input[formcontrolname="email"]', AGG_EMAIL)
+        await asyncio.sleep(0.5)
+        await page.fill('input[formcontrolname="senha"]', AGG_SENHA)
+        await asyncio.sleep(0.5)
+        await page.click('button:has-text("Entrar")')
 
-    # Aguarda redirecionamento (até 20s)
-    try:
-        await page.wait_for_url(lambda url: "/login" not in url, timeout=20000)
-    except:
-        # Pode ter aparecido popup de termos — tenta continuar
-        pass
+        try:
+            await page.wait_for_url(lambda url: "/login" not in url, timeout=20000)
+        except:
+            pass
 
-    await asyncio.sleep(3)
+        await asyncio.sleep(3)
 
-    # Fecha popup "Prosseguir" se aparecer
-    try:
-        btn = page.locator('button:has-text("Prosseguir")')
-        if await btn.count() > 0:
-            await btn.click()
-            await asyncio.sleep(2)
-    except:
-        pass
-
-    # Aceita termos se aparecer
-    try:
-        terms_btn = page.locator('button:has-text("Aceitar"), button:has-text("Concordo"), mat-checkbox')
-        if await terms_btn.count() > 0:
-            await terms_btn.first.click()
-            await asyncio.sleep(1)
-            proceed = page.locator('button:has-text("Prosseguir"), button:has-text("Continuar")')
-            if await proceed.count() > 0:
-                await proceed.first.click()
+        try:
+            btn = page.locator('button:has-text("Prosseguir")')
+            if await btn.count() > 0:
+                await btn.click()
                 await asyncio.sleep(2)
-    except:
-        pass
+        except:
+            pass
 
-    await page.wait_for_load_state("networkidle")
-    await asyncio.sleep(2)
-    await fechar_modais(page)
+        try:
+            terms_btn = page.locator('button:has-text("Aceitar"), button:has-text("Concordo")')
+            if await terms_btn.count() > 0:
+                await terms_btn.first.click()
+                await asyncio.sleep(1)
+                proceed = page.locator('button:has-text("Prosseguir"), button:has-text("Continuar")')
+                if await proceed.count() > 0:
+                    await proceed.first.click()
+                    await asyncio.sleep(2)
+        except:
+            pass
 
-    # Captura token JWT
-    token = await page.evaluate("""
-        () => {
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                const val = localStorage.getItem(key);
-                if (val && val.startsWith('eyJ')) return val;
-                try {
-                    const obj = JSON.parse(val);
-                    if (obj && obj.token) return obj.token;
-                    if (obj && obj.access_token) return obj.access_token;
-                } catch {}
-            }
-            for (let i = 0; i < sessionStorage.length; i++) {
-                const key = sessionStorage.key(i);
-                const val = sessionStorage.getItem(key);
-                if (val && val.startsWith('eyJ')) return val;
-            }
-            return null;
-        }
-    """)
-    if token:
-        logger.info(f"Token JWT capturado: {token[:40]}...")
-    else:
-        logger.warning("Token JWT não encontrado no storage")
+        await page.wait_for_load_state("networkidle")
+        await asyncio.sleep(2)
+        await fechar_modais(page)
+
+    await _do_login()
+
+    # Verifica se login funcionou
+    if "/login" in page.url:
+        if retry:
+            logger.warning("Login falhou, tentando novamente...")
+            await asyncio.sleep(3)
+            await _do_login()
+        else:
+            logger.error(f"Login falhou definitivamente. URL: {page.url}")
 
     logger.info(f"Login OK. URL atual: {page.url}")
-    return token
 
 
 # ── Interceptação de API ──────────────────────────────────────────────────────
 
 class ApiInterceptor:
-    """Intercepta respostas da API do Agilizador."""
+    """
+    Intercepta respostas da API do Agilizador.
+    
+    BUG 1 FIX: _classify é agora muito mais restritivo:
+    - Só classifica como lista se URL contiver 'busca/v2' ou 'negocio/busca'
+    - Exclui endpoints de seguradoras, config, usuario, status, etc.
+    - Para arrays: exige 'idIntegracao' ou 'negocios' na estrutura
+    """
 
     def __init__(self):
-        self.captured: Dict[str, Any] = {}  # url → parsed_data
-        self.list_endpoints: List[tuple] = []  # (url, data) das listagens
-        self.detail_endpoints: Dict[str, Any] = {}  # uuid → data
+        self.captured: Dict[str, Any] = {}
+        # Apenas endpoints REAIS de listagem de cotações
+        self.list_endpoints: List[tuple] = []
+        # UUID do idIntegracao → dados de versões
+        self.detail_endpoints: Dict[str, Any] = {}
 
     async def handle_response(self, response: Response):
         url = response.url
         try:
-            if "api.multicalculo.net" not in url and "aggilizador.com.br" not in url:
+            if "api.multicalculo.net" not in url and "api.aggilizador.com.br" not in url \
+               and "api-prod.aggilizador.com.br" not in url:
                 return
             if response.status != 200:
                 return
 
-            # Só processa JSON
             ct = response.headers.get("content-type", "")
             if "json" not in ct:
                 return
@@ -353,8 +384,8 @@ class ApiInterceptor:
             data = json.loads(text)
             self.captured[url] = data
 
-            # Salva para debug
-            if len(self.captured) <= 50:
+            # Salva para debug (primeiros 30)
+            if len(self.captured) <= 30:
                 fname = re.sub(r"[^a-z0-9]", "_", url.lower())[-60:]
                 debug_path = os.path.join(DEBUG_DIR, f"api_{fname}.json")
                 try:
@@ -363,190 +394,225 @@ class ApiInterceptor:
                 except:
                     pass
 
-            # Classifica a resposta
             self._classify(url, data)
 
         except Exception as e:
             logger.debug(f"Interceptor err {url[:80]}: {e}")
 
     def _classify(self, url: str, data: Any):
-        """Tenta identificar o tipo de endpoint."""
-        # Só interessa endpoints de cotação/negócio
+        """
+        BUG 1 FIX: Identifica APENAS endpoints reais de cotação.
+        
+        Exclui: seguradoras, config, usuario, cep, status, discount, renovacao, multi, travel
+        Inclui: negocio/busca, busca/v2, cotacao/versoes
+        """
         url_lower = url.lower()
-        is_cotacao_url = any(kw in url_lower for kw in [
-            "negocio", "cotacao", "busca", "calculo/historico"
-        ])
-        # Endpoints de detalhes (versoes de cotação específica)
-        is_versoes_url = "versoes" in url_lower or "orcamentos" in url_lower
 
-        # Listagem de cotações — deve ser do endpoint certo
-        if isinstance(data, dict):
-            # Padrão: {data: [...]} com chave negocios ou seguradoNome
-            if "data" in data and isinstance(data["data"], list) and len(data["data"]) > 0:
-                first = data["data"][0] if isinstance(data["data"][0], dict) else {}
-                has_cotacao_keys = any(k in first for k in [
-                    "seguradoNome", "seguradoCpfCnpj", "negocios",
-                    "placa", "veiculo", "idIntegracao"
-                ])
-                if has_cotacao_keys:
-                    logger.info(f"📋 Listagem (data) encontrada: {url[:80]} ({len(data['data'])} items)")
-                    self.list_endpoints.append((url, data))
+        # Padrões a EXCLUIR (não são cotações)
+        exclude_patterns = [
+            "seguradoras", "seguradora/config", "seguradorastatus",
+            "seguradoradiscountstatus", "seguradorasmulti", "seguradorasrenovacao",
+            "listusuarios", "listausuarios", "usuario/", "/usuario",
+            "cep/", "/cep", "/travel", "preferencias", "assinatura",
+            "research", "getresearch", "cobertura_v2", "seguradorastatus",
+            "app/seguradorastatus", "app/seguradoras"
+        ]
+        if any(p in url_lower for p in exclude_patterns):
+            logger.debug(f"Excluindo endpoint: {url[:80]}")
+            return
 
-        elif isinstance(data, list) and len(data) > 0:
+        # Endpoint de LISTA de negócios (busca/v2) — estrutura {data: [...]}
+        if isinstance(data, dict) and "data" in data and isinstance(data["data"], list) and data["data"]:
+            first = data["data"][0] if isinstance(data["data"][0], dict) else {}
+            # Precisa ter campos característicos de negócio
+            has_negocio_keys = "negocios" in first or (
+                "seguradoCpfCnpj" in first and "qtdNegocios" in first
+            )
+            if has_negocio_keys:
+                logger.info(f"📋 Lista busca/v2 encontrada: {url[:80]} ({len(data['data'])} segurados)")
+                self.list_endpoints.append((url, data))
+                return
+
+        # Endpoint de VERSÕES de cotação específica — exige 'calculos' no item
+        if isinstance(data, list) and data:
             first = data[0] if isinstance(data[0], dict) else {}
+            last = data[-1] if isinstance(data[-1], dict) else {}
 
-            # Versões de uma cotação específica
-            if is_versoes_url and ("calculos" in first or "versaoAtual" in first or "configuracoes" in first):
-                uuid_match = re.search(r"([a-f0-9-]{36})", url)
+            # Versões: tem 'calculos' e 'idIntegracao'
+            if ("calculos" in last or "calculos" in first) and (
+                "idIntegracao" in last or "idIntegracao" in first
+            ):
+                # Extrai UUID do URL
+                uuid_match = re.search(r"versoes/([a-f0-9-]{36})", url)
                 if uuid_match:
-                    self.detail_endpoints[uuid_match.group(1)] = data[-1]  # última versão
-                    logger.debug(f"Versões: {url[:80]}")
-
-            # Array de cotações direto (formato alternativo)
-            elif is_cotacao_url:
-                has_cotacao_keys = any(k in first for k in [
-                    "seguradoNome", "seguradoCpfCnpj", "negocios",
-                    "placa", "idIntegracao", "negocioId"
-                ])
-                if has_cotacao_keys:
-                    logger.info(f"📋 Lista (array) encontrada: {url[:80]} ({len(data)} items)")
-                    self.list_endpoints.append((url, data))
+                    uuid = uuid_match.group(1)
+                    self.detail_endpoints[uuid] = data
+                    logger.debug(f"Versões capturadas: {uuid[:8]}... ({len(data)} versões)")
+                return
 
 
 # ── Extração de cotações ──────────────────────────────────────────────────────
 
-def extract_cotacoes_from_list(data: Any) -> List[Dict]:
-    """Extrai lista normalizada de cotações de diferentes formatos de API.
+def extract_negocios_from_busca_v2(data: Any) -> List[Dict]:
+    """
+    BUG 2 FIX: Extrai lista de negócios do endpoint busca/v2.
     
-    Para o endpoint busca/v2 com modo=2:
-    - data.data[] = array de grupos por segurado
-    - Cada item tem: seguradoCpfCnpj, seguradoNome, negocios[]
-    - Cada negocio tem: id, idIntegracao, ramo, vigenciaIni, createdAt, etc.
-    
-    Expande os negocios em cotações individuais.
+    Estrutura esperada:
+    {
+      "data": [
+        {
+          "seguradoCpfCnpj": "...",
+          "seguradoNome": "...",
+          "fone1": "...",
+          "negocios": [
+            {
+              "id": "uuid-negocio",         ← NÃO usar como UUID de versoes!
+              "idIntegracao": "uuid-real",  ← UUID real para versoes
+              "seguradoNome": "...",
+              "seguradoCpfCnpj": "...",
+              "placa": "...",
+              "modelo": "...",
+              "ramo": 31,
+              "tipo": "v",
+              "createdAt": "..."
+            }
+          ]
+        }
+      ]
+    }
     """
-    items = []
+    negocios = []
 
-    # Estrutura: {data: [grupos_por_segurado]}
-    if isinstance(data, dict):
-        if "data" in data and isinstance(data["data"], list) and data["data"]:
-            # Cada elemento é um grupo por segurado com array negocios[]
-            for group in data["data"]:
-                if isinstance(group, dict):
-                    # Dados do segurado
-                    segurado_cpf = group.get("seguradoCpfCnpj", "")
-                    segurado_nome = group.get("seguradoNome", "")
-                    
-                    # Array negocios[] - cada um é uma cotação
-                    for negocio in group.get("negocios", []):
-                        if isinstance(negocio, dict):
-                            negocio["seguradoCpfCnpj"] = segurado_cpf
-                            negocio["seguradoNome"] = segurado_nome
-                            if "nomeSegurado" in negocio:
-                                del negocio["nomeSegurado"]  # evitar duplicata
-                            items.append(negocio)
-        elif "content" in data and isinstance(data["content"], list):
-            items = data["content"]
-        elif "cotacoes" in data and isinstance(data["cotacoes"], list):
-            items = data["cotacoes"]
-        elif any(k in data for k in ["seguradoNome", "seguradoCpfCnpj", "idIntegracao"]):
-            items = [data]
-    elif isinstance(data, list) and data:
-        items = data
+    if not isinstance(data, dict):
+        return negocios
 
-    return items
+    groups = data.get("data", [])
+    if not isinstance(groups, list):
+        return negocios
+
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+
+        # Dados do segurado a nível de grupo
+        cpf_grupo = group.get("seguradoCpfCnpj", "")
+        nome_grupo = safe_str(group.get("seguradoNome", ""))
+        fone_grupo = group.get("fone1", "")
+
+        for neg in group.get("negocios", []):
+            if not isinstance(neg, dict):
+                continue
+
+            # Propaga dados do segurado para o negócio se faltarem
+            if not neg.get("seguradoCpfCnpj"):
+                neg["_cpf_grupo"] = cpf_grupo
+            if not neg.get("seguradoNome"):
+                neg["_nome_grupo"] = nome_grupo
+            if not neg.get("fone1"):
+                neg["_fone_grupo"] = fone_grupo
+
+            negocios.append(neg)
+
+    return negocios
 
 
-def parse_cotacao_item(item: Dict) -> Dict:
+def parse_negocio_item(neg: Dict) -> Dict:
     """
-    Normaliza um item da lista de cotações para formato interno.
-    Tenta vários campos/nomes comuns da API.
+    BUG 2 FIX: Normaliza um negócio do busca/v2 para formato interno.
+    Usa 'idIntegracao' como UUID (não 'id').
+    BUG 3 FIX: Garante que nome nunca é dict.
     """
-    def get(*keys):
-        for k in keys:
-            v = item.get(k)
-            if v is not None:
-                return v
-            # nested: "veiculo.placa" → item.get("veiculo", {}).get("placa")
-            if "." in k:
-                parts = k.split(".", 1)
-                sub = item.get(parts[0])
-                if isinstance(sub, dict):
-                    v = sub.get(parts[1])
-                    if v is not None:
-                        return v
-        return None
+    # UUID correto: idIntegracao (usado para fetch de versoes)
+    id_integracao = neg.get("idIntegracao") or neg.get("id")  # idIntegracao é o real
+    negocio_id = neg.get("id")  # id do negócio (diferente de idIntegracao!)
 
-    # UUID/ID da cotação
-    uuid = get("uuid", "id", "cotacaoUuid", "cotacaoId")
-    created_at_raw = get("dataCalculo", "createdAt", "created_at", "dataCotacao",
-                         "dataVigenciaIni", "data")
+    # Se idIntegracao existir, usa ele; caso contrário usa id
+    # (idIntegracao é o que o endpoint /versoes espera)
+    uuid = id_integracao
 
-    # Segurado/Cliente
-    segurado_nome = get("nomeSegurado", "segurado", "cliente", "nome",
-                        "segurado.nome", "cliente.nome")
-    segurado_cpf = get("cpfSegurado", "cpf", "cpfCnpj", "segurado.cpf",
-                       "cliente.cpf", "segurado.cpfCnpj")
+    # Nome do segurado — BUG 3 FIX: nunca retorna dict
+    segurado_nome = safe_str(
+        neg.get("seguradoNome") or neg.get("_nome_grupo") or neg.get("nomeSegurado")
+    )
 
-    # Veículo
-    placa = get("placa", "veiculo.placa", "veiculoPlaca")
-    marca_modelo = get("marcaModelo", "descricaoVeiculo", "veiculo.marcaModelo",
-                       "veiculo.descricao", "modeloVeiculo", "veiculo")
-    if isinstance(marca_modelo, dict):
-        marca_modelo = marca_modelo.get("descricao") or marca_modelo.get("marcaModelo") or str(marca_modelo)
-    ano_fab = get("anoFabricacao", "anoFab", "veiculo.anoFabricacao", "ano")
-    ano_mod = get("anoModelo", "anoMod", "veiculo.anoModelo")
-    chassi = get("chassi", "veiculo.chassi")
+    # CPF
+    segurado_cpf = neg.get("seguradoCpfCnpj") or neg.get("_cpf_grupo") or ""
+    segurado_cpf = re.sub(r"\D", "", str(segurado_cpf))
 
-    # Nascimento
-    nascimento = get("dataNascimento", "dataNasc", "segurado.dataNascimento")
+    # Telefone
+    telefone = neg.get("fone1") or neg.get("_fone_grupo") or ""
+    telefone = re.sub(r"\D", "", str(telefone)) if telefone else ""
 
-    # URL do Agilizador para esta cotação
+    # Veículo (só para ramo=31 / tipo='v')
+    placa = clean_placa(str(neg.get("placa", "")))
+    # BUG 3 FIX: modelo pode ser dict em algumas variações da API
+    modelo_raw = neg.get("modelo") or neg.get("marcaModelo") or neg.get("descricaoVeiculo")
+    marca_modelo = safe_str(modelo_raw) if modelo_raw else None
+
+    # Ramo e tipo
+    ramo = neg.get("ramo", 0)  # 31 = auto, 2 = residencial
+    tipo = neg.get("tipo", "")  # 'v' = veiculo
+
+    # Data de criação
+    created_at_raw = neg.get("createdAt") or neg.get("dataCriacao") or neg.get("vigenciaIni")
+
+    # URL do Agilizador
     if uuid:
-        agilizador_url = f"{AGG_URL}/cotacao/auto/resultados/{uuid}"
+        if ramo == 31 or tipo == "v":
+            agilizador_url = f"{AGG_URL}/cotacao/auto/resultados/{uuid}"
+        elif ramo == 2:
+            agilizador_url = f"{AGG_URL}/cotacao/residencial/resultados/{uuid}"
+        else:
+            agilizador_url = f"{AGG_URL}/cotacao/resultados/{uuid}"
     else:
         agilizador_url = None
 
     return {
         "uuid": str(uuid) if uuid else None,
+        "negocio_id": str(negocio_id) if negocio_id else None,
         "agilizador_url": agilizador_url,
         "created_at_raw": created_at_raw,
         "segurado_nome": segurado_nome,
         "segurado_cpf": segurado_cpf,
-        "nascimento": nascimento,
-        "placa": clean_placa(str(placa)) if placa else None,
-        "marca_modelo": str(marca_modelo) if marca_modelo else None,
-        "ano_fabricacao": str(ano_fab) if ano_fab else None,
-        "ano_modelo": str(ano_mod) if ano_mod else None,
-        "chassi": str(chassi) if chassi else None,
-        "_raw": item,
+        "telefone": telefone,
+        "placa": placa,
+        "marca_modelo": marca_modelo,
+        "ramo": ramo,
+        "tipo": tipo,
+        "is_auto": ramo == 31 or tipo == "v",
+        "_raw": neg,
     }
 
 
 def parse_resultados_from_versoes(versoes_data: Any) -> List[Dict]:
     """
     Extrai resultados (seguradoras/prêmios) dos dados de versões de uma cotação.
-    Formato esperado: lista de versões, cada uma com calculos[].resultados[]
     """
     results = []
     versoes = versoes_data if isinstance(versoes_data, list) else [versoes_data]
 
-    # Pega a última versão (mais recente)
     if not versoes:
         return []
 
-    latest = versoes[-1] if isinstance(versoes[-1], dict) else versoes[0]
-    calculos = latest.get("calculos", [])
+    # Usa a última versão (mais recente)
+    latest = None
+    for v in reversed(versoes):
+        if isinstance(v, dict) and "calculos" in v:
+            latest = v
+            break
+    if not latest:
+        return []
 
-    seen = set()  # evita duplicatas por seguradora
+    calculos = latest.get("calculos", [])
+    seen = set()
+
     for calc in calculos:
-        seg_nome = (calc.get("nomeSeguradora") or calc.get("seguradoraTxt") or "").strip()
+        seg_nome = safe_str(calc.get("nomeSeguradora") or calc.get("seguradoraTxt")).strip()
         if not seg_nome:
             continue
 
         res_list = calc.get("resultados", [])
         if not res_list:
-            # Seguradora sem resultado
             key = seg_nome.lower()
             if key not in seen:
                 seen.add(key)
@@ -557,18 +623,18 @@ def parse_resultados_from_versoes(versoes_data: Any) -> List[Dict]:
                     "plano": None,
                     "numero": None,
                     "coberturas": None,
-                    "mensagem": calc.get("mensagemErro") or "Sem resultado",
+                    "mensagem": safe_str(calc.get("mensagemErro") or calc.get("retornoErro")) or "Sem resultado",
                 })
             continue
 
         for res in res_list:
             premio = parse_premio(res.get("premio"))
-            # Filtra apenas resultados com prêmio (coberturas compreensivas)
             if premio is None:
                 continue
 
-            plano = (res.get("identificacao") or res.get("cobertura") or
-                     res.get("nomePacote") or "").strip()
+            plano = safe_str(
+                res.get("identificacao") or res.get("cobertura") or res.get("nomePacote")
+            )
             key = f"{seg_nome.lower()}|{plano.lower()}"
             if key in seen:
                 continue
@@ -577,11 +643,11 @@ def parse_resultados_from_versoes(versoes_data: Any) -> List[Dict]:
             results.append({
                 "seguradora": seg_nome,
                 "premio": premio,
-                "franquia": parse_premio(res.get("franquia")),
+                "franquia": parse_premio(res.get("franquia") or res.get("valorFranquia")),
                 "plano": plano,
-                "numero": str(res.get("numeroCotacao") or res.get("identificacao") or ""),
-                "coberturas": res.get("coberturas") or res.get("cobertura"),
-                "mensagem": res.get("mensagemErro"),
+                "numero": safe_str(res.get("nroCalculo") or res.get("numeroCotacao") or res.get("identificacao")),
+                "coberturas": safe_str(res.get("coberturas") or res.get("cobertura")),
+                "mensagem": safe_str(res.get("mensagemErro")),
             })
 
     return results
@@ -589,11 +655,10 @@ def parse_resultados_from_versoes(versoes_data: Any) -> List[Dict]:
 
 # ── Sync principal ────────────────────────────────────────────────────────────
 
-async def fetch_versoes_for_cotacao(page: Page, uuid: str) -> Optional[Any]:
-    """Busca os detalhes (versões/resultados) de uma cotação pelo UUID."""
-    api_url = f"https://api.multicalculo.net/calculo/cotacao/versoes/{uuid}"
+async def fetch_versoes_for_cotacao(page: Page, id_integracao: str) -> Optional[Any]:
+    """Busca versões de uma cotação pelo idIntegracao."""
+    api_url = f"https://api.multicalculo.net/calculo/cotacao/versoes/{id_integracao}"
     try:
-        # Tenta via fetch no contexto do browser (com cookies)
         resp_text = await page.evaluate(f"""
             async () => {{
                 try {{
@@ -606,245 +671,132 @@ async def fetch_versoes_for_cotacao(page: Page, uuid: str) -> Optional[Any]:
         if resp_text:
             return json.loads(resp_text)
     except Exception as e:
-        logger.debug(f"fetch versoes {uuid}: {e}")
+        logger.debug(f"fetch versoes {id_integracao}: {e}")
 
-    # Tenta via Playwright request
     try:
         api_resp = await page.context.request.get(api_url)
         if api_resp.ok:
             return json.loads(await api_resp.text())
     except Exception as e:
-        logger.debug(f"playwright request versoes {uuid}: {e}")
+        logger.debug(f"playwright request versoes {id_integracao}: {e}")
 
     return None
 
 
-async def navigate_to_cotacoes_list(page: Page, interceptor: ApiInterceptor):
-    """Navega para a lista de cotações e aguarda carregamento."""
-    logger.info("Navegando para lista de cotações...")
+async def fetch_busca_v2_page(page: Page, page_num: int = 1, limit: int = 40) -> Optional[Dict]:
+    """
+    Busca uma página do endpoint busca/v2.
+    BUG 4 FIX: Suporte a paginação.
+    """
+    url = f"{BUSCA_V2_BASE}?textoBusca=&modo=2&page={page_num}&limit={limit}&sortOrder=desc&integracaoInfo=1"
+    try:
+        resp_text = await page.evaluate(f"""
+            async () => {{
+                try {{
+                    const r = await fetch('{url}', {{
+                        credentials: 'include',
+                        headers: {{'Accept': 'application/json'}}
+                    }});
+                    if (r.status !== 200) return null;
+                    return await r.text();
+                }} catch(e) {{ return null; }}
+            }}
+        """)
+        if resp_text:
+            data = json.loads(resp_text)
+            logger.info(f"busca/v2 página {page_num}: {len(data.get('data', []))} segurados")
+            return data
+    except Exception as e:
+        logger.warning(f"fetch busca/v2 página {page_num}: {e}")
+    return None
 
-    # Tenta a página principal
-    await page.goto(f"{AGG_URL}/cotacao/auto", timeout=30000)
-    await page.wait_for_load_state("networkidle")
-    await asyncio.sleep(3)
-    await fechar_modais(page)
 
-    # Procura link/botão para histórico de cotações
-    hist_selectors = [
-        'a:has-text("Histórico")',
-        'a:has-text("Meus Cálculos")',
-        'a:has-text("Cotações")',
-        'button:has-text("Histórico")',
-        '[routerlink*="historico"]',
-        '[routerlink*="cotacoes"]',
-        'a[href*="historico"]',
-        'a[href*="cotacoes"]',
-        'mat-nav-list a',
-    ]
+async def collect_all_negocios(page: Page, interceptor: ApiInterceptor,
+                                limit: int = 200) -> List[Dict]:
+    """
+    Coleta todos os negócios do busca/v2 via paginação.
+    Prioriza dados já interceptados, depois faz fetch manual.
+    """
+    all_negocios = []
+    seen_uuids = set()
 
-    for sel in hist_selectors:
-        try:
-            el = page.locator(sel).first
-            if await el.count() > 0:
-                href = await el.get_attribute("href") or ""
-                text = await el.inner_text()
-                logger.info(f"Encontrou link: '{text.strip()}' → {href}")
-                if any(kw in (href + text).lower() for kw in ["histor", "calc", "cotac", "lista"]):
-                    await el.click(force=True)
-                    await page.wait_for_load_state("networkidle")
-                    await asyncio.sleep(3)
-                    logger.info(f"Navegou para: {page.url}")
+    def add_negocios(negocios_list):
+        added = 0
+        for neg in negocios_list:
+            uid = neg.get("uuid") or neg.get("negocio_id")
+            if uid and uid in seen_uuids:
+                continue
+            if uid:
+                seen_uuids.add(uid)
+            all_negocios.append(neg)
+            added += 1
+        return added
+
+    # 1. Primeiro usa dados interceptados (já temos a página 1)
+    if interceptor.list_endpoints:
+        for url, data in interceptor.list_endpoints:
+            raw_negocios = extract_negocios_from_busca_v2(data)
+            parsed = [parse_negocio_item(n) for n in raw_negocios]
+            added = add_negocios(parsed)
+            logger.info(f"Da interceptação {url[:60]}: {added} negócios")
+        
+        # Verifica se precisamos de mais páginas
+        if len(all_negocios) < limit:
+            page_num = 2
+            while len(all_negocios) < limit:
+                await asyncio.sleep(0.5)
+                data = await fetch_busca_v2_page(page, page_num, limit=40)
+                if not data:
                     break
-        except:
-            pass
+                raw_negocios = extract_negocios_from_busca_v2(data)
+                if not raw_negocios:
+                    break
+                parsed = [parse_negocio_item(n) for n in raw_negocios]
+                added = add_negocios(parsed)
+                logger.info(f"Página {page_num}: +{added} negócios (total: {len(all_negocios)})")
+                if added == 0:
+                    break
+                page_num += 1
+                if page_num > 50:  # segurança
+                    break
+    else:
+        # Sem interceptação — faz fetch manual das páginas
+        logger.info("Sem dados interceptados, fazendo fetch manual do busca/v2...")
+        page_num = 1
+        while len(all_negocios) < limit:
+            data = await fetch_busca_v2_page(page, page_num, limit=40)
+            if not data:
+                break
+            raw_negocios = extract_negocios_from_busca_v2(data)
+            if not raw_negocios:
+                break
+            parsed = [parse_negocio_item(n) for n in raw_negocios]
+            added = add_negocios(parsed)
+            logger.info(f"Página {page_num}: +{added} negócios (total: {len(all_negocios)})")
+            if added == 0:
+                break
+            page_num += 1
+            await asyncio.sleep(0.5)
+            if page_num > 50:
+                break
+
+    logger.info(f"Total de negócios coletados: {len(all_negocios)}")
+    return all_negocios[:limit]
+
+
+async def navigate_to_cotacoes_list(page: Page, interceptor: ApiInterceptor):
+    """Navega para a lista de cotações e aguarda carregamento (dispara interceptações)."""
+    logger.info("Navegando para /cotacoes...")
+    await page.goto(f"{AGG_URL}/cotacoes", timeout=30000)
+    await page.wait_for_load_state("networkidle")
+    await asyncio.sleep(4)
+    await fechar_modais(page)
 
     # Screenshot de debug
     try:
-        await page.screenshot(path=f"{DEBUG_DIR}/lista_cotacoes.png", full_page=False)
+        await page.screenshot(path=f"{DEBUG_DIR}/lista_cotacoes_v2.png", full_page=False)
     except:
         pass
-
-
-async def fetch_list_via_api(page: Page, interceptor: ApiInterceptor,
-                              limit: int = 200) -> List[Dict]:
-    """
-    Tenta descobrir e consumir o endpoint de listagem de cotações.
-    Retorna lista de itens de cotação normalizados.
-    """
-    all_items = []
-    found_list = False
-
-    # Primeiro aguarda interceptações ao navegar
-    await navigate_to_cotacoes_list(page, interceptor)
-    await asyncio.sleep(2)
-
-    # Verifica se já capturamos listagens via interceptação
-    if interceptor.list_endpoints:
-        for url, data in interceptor.list_endpoints:
-            items = extract_cotacoes_from_list(data)
-            if items:
-                logger.info(f"Listagem interceptada: {len(items)} cotações em {url[:80]}")
-                all_items.extend(items)
-                found_list = True
-
-    # Se não interceptou, tenta endpoints comuns diretamente
-    if not found_list:
-        logger.info("Nenhuma listagem interceptada, tentando endpoints diretos...")
-
-        candidate_endpoints = [
-            # Padrões mais comuns de APIs Spring/Angular
-            "https://api.multicalculo.net/calculo/cotacao?size=100&page=0&sort=createdAt,desc",
-            "https://api.multicalculo.net/calculo/cotacao/list?limit=100",
-            "https://api.multicalculo.net/calculo/cotacao/historico?size=100",
-            "https://api.multicalculo.net/calculo/historico?size=100&page=0",
-            "https://api.multicalculo.net/cotacao?size=100&page=0",
-            "https://api.multicalculo.net/calculo?size=100&page=0",
-            "https://api.multicalculo.net/calculo/cotacao/auto?size=100",
-        ]
-
-        for ep in candidate_endpoints:
-            try:
-                resp_text = await page.evaluate(f"""
-                    async () => {{
-                        try {{
-                            const r = await fetch('{ep}', {{credentials: 'include', headers: {{'Accept': 'application/json'}}}});
-                            if (r.status !== 200) return null;
-                            const ct = r.headers.get('content-type') || '';
-                            if (!ct.includes('json')) return null;
-                            return await r.text();
-                        }} catch(e) {{ return null; }}
-                    }}
-                """)
-                if resp_text:
-                    try:
-                        data = json.loads(resp_text)
-                        items = extract_cotacoes_from_list(data)
-                        if items:
-                            logger.info(f"✅ Endpoint funcionou: {ep} → {len(items)} itens")
-                            all_items.extend(items)
-                            found_list = True
-                            # Tenta paginar
-                            if isinstance(data, dict) and "totalPages" in data:
-                                total_pages = data.get("totalPages", 1)
-                                logger.info(f"Total de páginas: {total_pages}")
-                                for pg in range(1, min(total_pages, 20)):  # max 20 pages
-                                    if len(all_items) >= limit:
-                                        break
-                                    page_ep = re.sub(r"page=\d+", f"page={pg}", ep)
-                                    page_ep = re.sub(r"&size=\d+", f"&size=100", page_ep)
-                                    resp2 = await page.evaluate(f"""
-                                        async () => {{
-                                            try {{
-                                                const r = await fetch('{page_ep}', {{credentials: 'include'}});
-                                                if (r.status !== 200) return null;
-                                                return await r.text();
-                                            }} catch(e) {{ return null; }}
-                                        }}
-                                    """)
-                                    if resp2:
-                                        d2 = json.loads(resp2)
-                                        items2 = extract_cotacoes_from_list(d2)
-                                        if items2:
-                                            all_items.extend(items2)
-                                            logger.info(f"Página {pg}: +{len(items2)} itens")
-                                        else:
-                                            break
-                                    await asyncio.sleep(1)
-                            break
-                    except:
-                        pass
-            except:
-                pass
-            await asyncio.sleep(0.5)
-
-    # Se ainda não achou, tenta pegar UUIDs da página via DOM
-    if not found_list:
-        logger.info("Tentando extrair UUIDs via DOM da página...")
-        try:
-            page_html = await page.content()
-            # Salva para análise
-            with open(f"{DEBUG_DIR}/pagina_cotacoes.html", "w") as f:
-                f.write(page_html)
-
-            # Extrai UUIDs do HTML (cotação URLs)
-            uuid_pattern = r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
-            uuids = list(set(re.findall(uuid_pattern, page_html)))
-            if uuids:
-                logger.info(f"UUIDs encontrados no DOM: {len(uuids)}")
-                for uuid in uuids[:limit]:
-                    all_items.append({"uuid": uuid})
-        except Exception as e:
-            logger.warning(f"Erro ao extrair UUIDs: {e}")
-
-    # Verifica também as captured APIs (pode ter dados de cotação individual carregada)
-    if not all_items:
-        for url, data in interceptor.captured.items():
-            if isinstance(data, list) and len(data) > 0:
-                first = data[0] if isinstance(data[0], dict) else {}
-                if any(k in first for k in ["uuid", "placa", "segurado", "dataCalculo"]):
-                    items = extract_cotacoes_from_list(data)
-                    if items:
-                        logger.info(f"Dados de cotação em: {url[:80]} ({len(items)} items)")
-                        all_items.extend(items)
-
-    return all_items[:limit]
-
-
-async def scroll_and_collect_cotacoes(page: Page, interceptor: ApiInterceptor, limit: int = 200) -> List[Dict]:
-    """
-    Abordagem alternativa: navega pela lista visível na UI e coleta dados via DOM.
-    """
-    logger.info("Tentando coleta via scroll na UI...")
-    cotacoes_ui = []
-
-    try:
-        # Aguarda carregamento de cards
-        await page.wait_for_selector(
-            '.cotacao-item, .card-cotacao, mat-card, .historico-item, tr.ng-star-inserted',
-            timeout=10000
-        )
-    except:
-        logger.warning("Nenhum card/row de cotação detectado via seletor padrão")
-
-    try:
-        # Scroll down para carregar mais
-        for _ in range(10):
-            await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            await asyncio.sleep(1.5)
-            if len(cotacoes_ui) >= limit:
-                break
-
-        # Extrai dados visíveis
-        cotacoes_ui = await page.evaluate("""
-            () => {
-                const results = [];
-                // Procura linhas de tabela ou cards
-                const rows = document.querySelectorAll('tr[class*="ng-star"], .cotacao-item, mat-row, .historico-item');
-                rows.forEach(row => {
-                    const text = row.innerText || '';
-                    const links = row.querySelectorAll('a[href*="resultados"], a[href*="cotacao"]');
-                    const href = links.length > 0 ? links[0].href : '';
-                    
-                    // UUID da cotação
-                    const uuidMatch = href.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/);
-                    if (!uuidMatch) return;
-                    
-                    results.push({
-                        uuid: uuidMatch[1],
-                        href: href,
-                        text: text.trim().substring(0, 200)
-                    });
-                });
-                return results;
-            }
-        """)
-
-        if cotacoes_ui:
-            logger.info(f"Coletados {len(cotacoes_ui)} itens via DOM scroll")
-    except Exception as e:
-        logger.warning(f"Erro na coleta DOM: {e}")
-
-    return cotacoes_ui
 
 
 # ── Main sync ─────────────────────────────────────────────────────────────────
@@ -857,6 +809,7 @@ async def sync_cotacoes(limit: int = 200, debug: bool = False):
         "cotacoes_total": 0,
         "cotacoes_novas": 0,
         "cotacoes_skip": 0,
+        "cotacoes_nao_auto": 0,
         "clientes_novos": 0,
         "resultados_inseridos": 0,
         "erros": 0,
@@ -874,134 +827,110 @@ async def sync_cotacoes(limit: int = 200, debug: bool = False):
         user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
     )
     page = await context.new_page()
-
-    # Registra interceptador
     page.on("response", interceptor.handle_response)
 
     try:
         # Login
         logger.info("=" * 60)
         logger.info("🔐 Fazendo login no Agilizador...")
-        jwt_token = await login(page)
+        await login(page)
 
-        await asyncio.sleep(1)
+        # Navega para lista (dispara interceptações da busca/v2)
+        await navigate_to_cotacoes_list(page, interceptor)
 
-        # Coleta lista de cotações
+        # Coleta negócios
         logger.info("=" * 60)
-        logger.info(f"📋 Coletando lista de cotações (limit={limit})...")
-        raw_list = await fetch_list_via_api(page, interceptor, limit=limit)
+        logger.info(f"📋 Coletando negócios (limit={limit})...")
+        negocios = await collect_all_negocios(page, interceptor, limit=limit)
 
-        if not raw_list:
-            # Tenta abordagem alternativa via scroll
-            raw_list = await scroll_and_collect_cotacoes(page, interceptor, limit=limit)
-
-        if not raw_list:
-            logger.error("❌ Não conseguiu obter lista de cotações. Verifique debug/pagina_cotacoes.html")
-            # Dump de todos os endpoints capturados para análise
-            logger.info(f"Endpoints capturados ({len(interceptor.captured)}):")
-            for url in list(interceptor.captured.keys())[:30]:
-                data = interceptor.captured[url]
-                dtype = type(data).__name__
-                dlen = len(data) if isinstance(data, (list, dict)) else "?"
-                logger.info(f"  {dtype}[{dlen}] {url[:100]}")
+        if not negocios:
+            logger.error("❌ Nenhum negócio encontrado. Verifique debug/lista_cotacoes_v2.png")
+            # Dump endpoints capturados
+            for url in list(interceptor.captured.keys()):
+                d = interceptor.captured[url]
+                logger.info(f"  Capturado: {type(d).__name__} {url[:100]}")
             return stats
 
-        logger.info(f"✅ {len(raw_list)} cotações encontradas na lista")
+        logger.info(f"✅ {len(negocios)} negócios encontrados")
 
-        # Processa cada cotação
+        # Filtra apenas auto (ramo=31 ou tipo='v')
+        auto_negocios = [n for n in negocios if n.get("is_auto")]
+        outros = len(negocios) - len(auto_negocios)
+        logger.info(f"   Auto: {len(auto_negocios)} | Outros (residencial, etc): {outros}")
+        stats["cotacoes_nao_auto"] = outros
+
+        # Processa cada negócio auto
         db = get_db()
         cur = db.cursor()
 
-        for i, raw_item in enumerate(raw_list[:limit]):
-            if i >= limit:
-                break
-
-            cotacao = parse_cotacao_item(raw_item)
-            uuid = cotacao.get("uuid")
+        for i, negocio in enumerate(auto_negocios[:limit]):
             stats["cotacoes_total"] += 1
+            uuid = negocio.get("uuid")  # = idIntegracao
+            placa = negocio.get("placa") or ""
+            nome = negocio.get("segurado_nome") or ""
+            cpf = negocio.get("segurado_cpf") or ""
+            telefone = negocio.get("telefone") or ""
 
             if i > 0 and i % 10 == 0:
-                logger.info(f"📊 Progresso: {i}/{min(len(raw_list), limit)} | "
+                logger.info(f"📊 Progresso: {i}/{len(auto_negocios)} | "
                             f"novas={stats['cotacoes_novas']} skip={stats['cotacoes_skip']} "
                             f"erros={stats['erros']}")
 
-            # Busca detalhes (versões/resultados) se não temos ainda
-            versoes_data = None
-            if uuid:
-                versoes_data = interceptor.detail_endpoints.get(uuid)
-                if not versoes_data:
-                    await asyncio.sleep(1)  # rate limit
-                    versoes_data = await fetch_versoes_for_cotacao(page, uuid)
-                    if versoes_data:
-                        interceptor.detail_endpoints[uuid] = versoes_data
-
-            # Enriquece dados com info das versões
-            if versoes_data:
-                versao = versoes_data if isinstance(versoes_data, dict) else (
-                    versoes_data[-1] if isinstance(versoes_data, list) and versoes_data else {}
-                )
-                # Preenche campos faltantes do item com dados das versões
-                if not cotacao.get("segurado_nome"):
-                    cot_data = versao.get("cotacao") or versao
-                    cotacao["segurado_nome"] = (
-                        cot_data.get("nomeSegurado") or
-                        cot_data.get("segurado") or
-                        cotacao.get("segurado_nome")
-                    )
-                if not cotacao.get("segurado_cpf"):
-                    cot_data = versao.get("cotacao") or versao
-                    cotacao["segurado_cpf"] = (
-                        cot_data.get("cpfSegurado") or
-                        cot_data.get("cpf") or
-                        cotacao.get("segurado_cpf")
-                    )
-                if not cotacao.get("placa"):
-                    cot_data = versao.get("cotacao") or versao
-                    placa_raw = (
-                        cot_data.get("placa") or
-                        (cot_data.get("veiculo") or {}).get("placa") if isinstance(cot_data.get("veiculo"), dict) else None
-                    )
-                    cotacao["placa"] = clean_placa(str(placa_raw)) if placa_raw else None
-
             # Valida dados mínimos
-            nome = (cotacao.get("segurado_nome") or "").strip()
-            placa = cotacao.get("placa") or ""
             if not nome and not placa and not uuid:
                 logger.debug(f"Item {i}: sem dados suficientes, skip")
                 stats["cotacoes_skip"] += 1
                 continue
 
+            # BUG 3 FIX: nome sempre string
             if not nome:
-                nome = f"Cliente_{placa or uuid or i}"
+                nome = f"Cliente_{placa or uuid[:8] if uuid else str(i)}"
 
-            # Parse data
+            # Parse data de criação
             created_at = None
-            if cotacao.get("created_at_raw"):
-                dt = parse_date(cotacao["created_at_raw"])
+            if negocio.get("created_at_raw"):
+                dt = parse_date(negocio["created_at_raw"])
                 if dt:
                     created_at = datetime.combine(dt, datetime.min.time())
             if not created_at:
                 created_at = datetime.now()
 
             try:
-                # Clientes
-                cliente_existia = False
-                cpf = cotacao.get("segurado_cpf") or ""
-                cpf_clean = re.sub(r"\D", "", cpf)
-                if cpf_clean:
-                    cur.execute("SELECT id FROM clientes WHERE corretora_id=%s AND cpf_cnpj=%s",
-                                (CORRETORA_ID, cpf_clean))
-                    row = cur.fetchone()
-                    cliente_existia = row is not None
+                # Busca versões para enriquecer dados (rate: 1 req/s)
+                versoes_data = interceptor.detail_endpoints.get(uuid) if uuid else None
+                if not versoes_data and uuid:
+                    await asyncio.sleep(0.8)
+                    versoes_data = await fetch_versoes_for_cotacao(page, uuid)
+                    if versoes_data:
+                        interceptor.detail_endpoints[uuid] = versoes_data
 
+                # Enriquece com dados das versões se necessário
+                if versoes_data:
+                    latest = versoes_data[-1] if isinstance(versoes_data, list) and versoes_data else (
+                        versoes_data if isinstance(versoes_data, dict) else {}
+                    )
+                    if not nome or nome.startswith("Cliente_"):
+                        nome = safe_str(
+                            latest.get("seguradoNome") or
+                            (latest.get("segurado") or {}).get("nome") if isinstance(latest.get("segurado"), dict) else None
+                        ) or nome
+                    if not placa:
+                        placa = clean_placa(safe_str(
+                            latest.get("placa") or
+                            (latest.get("configuracoes") or {}).get("placa") if isinstance(latest.get("configuracoes"), dict) else None
+                        ))
+                    if not negocio.get("marca_modelo"):
+                        cfg = latest.get("configuracoes") or {}
+                        if isinstance(cfg, dict):
+                            negocio["marca_modelo"] = safe_str(cfg.get("modelo") or cfg.get("marcaModelo"))
+
+                # Clientes
                 cliente_id = upsert_cliente(
                     cur,
                     nome=nome,
-                    cpf_cnpj=cpf_clean or None,
-                    nascimento=cotacao.get("nascimento"),
+                    cpf_cnpj=cpf or None,
+                    telefone=telefone or None,
                 )
-                if not cliente_existia and cpf_clean:
-                    stats["clientes_novos"] += 1
                 db.commit()
 
                 # Veículos
@@ -1009,10 +938,7 @@ async def sync_cotacoes(limit: int = 200, debug: bool = False):
                     cur,
                     cliente_id=cliente_id,
                     placa=placa,
-                    marca_modelo=cotacao.get("marca_modelo"),
-                    ano_fabricacao=cotacao.get("ano_fabricacao"),
-                    ano_modelo=cotacao.get("ano_modelo"),
-                    chassi=cotacao.get("chassi"),
+                    marca_modelo=negocio.get("marca_modelo"),
                 )
                 db.commit()
 
@@ -1029,15 +955,11 @@ async def sync_cotacoes(limit: int = 200, debug: bool = False):
                     continue
 
                 # Insere cotação
-                agilizador_url = cotacao.get("agilizador_url") or (
-                    f"{AGG_URL}/cotacao/auto/resultados/{uuid}" if uuid else None
-                )
+                agilizador_url = negocio.get("agilizador_url")
                 crvl_data = {
                     "placa": placa,
-                    "marca_modelo": cotacao.get("marca_modelo"),
-                    "ano_fabricacao": cotacao.get("ano_fabricacao"),
-                    "ano_modelo": cotacao.get("ano_modelo"),
-                    "chassi": cotacao.get("chassi"),
+                    "marca_modelo": negocio.get("marca_modelo"),
+                    "idIntegracao": uuid,
                 }
                 cotacao_id = insert_cotacao(
                     cur,
@@ -1050,7 +972,7 @@ async def sync_cotacoes(limit: int = 200, debug: bool = False):
                 db.commit()
                 stats["cotacoes_novas"] += 1
 
-                # Insere resultados
+                # Insere resultados das seguradoras
                 if versoes_data:
                     resultados = parse_resultados_from_versoes(versoes_data)
                     for res in resultados:
@@ -1067,20 +989,23 @@ async def sync_cotacoes(limit: int = 200, debug: bool = False):
                         )
                         stats["resultados_inseridos"] += 1
                     db.commit()
-                    logger.debug(f"Cotação {uuid or placa}: {len(resultados)} resultados inseridos")
+                    if resultados:
+                        logger.info(f"  ✅ {nome[:30]} | {placa} → {len(resultados)} resultados")
 
             except Exception as e:
                 db.rollback()
-                logger.error(f"Erro ao processar cotação {uuid or placa}: {e}")
+                logger.error(f"Erro ao processar {nome[:20]} / {placa} / {uuid}: {e}")
                 stats["erros"] += 1
                 continue
-
-            await asyncio.sleep(0.5)  # Gentil para não sobrecarregar a API
 
         cur.close()
         db.close()
 
     finally:
+        try:
+            await page.screenshot(path=f"{DEBUG_DIR}/sync_final.png")
+        except:
+            pass
         await browser.close()
         await pw.stop()
 
@@ -1091,7 +1016,7 @@ async def sync_cotacoes(limit: int = 200, debug: bool = False):
 
 def main():
     parser = argparse.ArgumentParser(description="Sync histórico de cotações do Agilizador")
-    parser.add_argument("--limit", type=int, default=200, help="Máximo de cotações a importar")
+    parser.add_argument("--limit", type=int, default=200, help="Máximo de cotações auto a importar")
     parser.add_argument("--debug", action="store_true", help="Modo debug verboso")
     args = parser.parse_args()
 
@@ -1099,7 +1024,7 @@ def main():
         logging.getLogger().setLevel(logging.DEBUG)
 
     logger.info("=" * 60)
-    logger.info("🚀 Sync Agilizador — Importar histórico de cotações")
+    logger.info("🚀 Sync Agilizador v2 — Importar histórico de cotações AUTO")
     logger.info(f"   Limit: {args.limit}")
     logger.info("=" * 60)
 
@@ -1112,6 +1037,7 @@ def main():
     logger.info(f"   Total processadas: {stats['cotacoes_total']}")
     logger.info(f"   Cotações novas:    {stats['cotacoes_novas']}")
     logger.info(f"   Cotações skip:     {stats['cotacoes_skip']}")
+    logger.info(f"   Não-auto (skip):   {stats['cotacoes_nao_auto']}")
     logger.info(f"   Clientes novos:    {stats['clientes_novos']}")
     logger.info(f"   Resultados:        {stats['resultados_inseridos']}")
     logger.info(f"   Erros:             {stats['erros']}")

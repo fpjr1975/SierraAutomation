@@ -801,14 +801,33 @@ async def calcular_cotacao(session_data: dict, on_progress=None, chat_id: int = 
         await _select_mat(page, "combustivel", comb_option)
         logger.info(f"Combustível: '{combustivel}' → {comb_option}")
 
+        # Chassi válido: 17 chars alfanuméricos, formato real
+        # Chassi: SÓ preenche se tiver chassi COMPLETO (17 chars válidos)
+        # Chassi parcial ou gerado falha na validação do Agilizador (dígito verificador VIN)
+        # O Agilizador aceita cotação SEM chassi — campo é opcional pra cálculo
         if chassi:
-            await _fill_by_name(page, "chassi", chassi)
+            chassi_clean = re.sub(r'[^A-Za-z0-9]', '', str(chassi)).upper()
+            if len(chassi_clean) == 17:
+                await _fill_by_name(page, "chassi", chassi_clean)
+                logger.info(f"Chassi completo: {chassi_clean}")
+            else:
+                # Limpa o campo — não preenche chassi parcial
+                try:
+                    el = page.locator('input[name="chassi"]').first
+                    await el.click(force=True, timeout=3000)
+                    await el.fill("", timeout=3000)
+                    logger.info(f"Chassi parcial '{chassi}' ignorado — campo limpo")
+                except:
+                    logger.info(f"Chassi parcial '{chassi}' ignorado")
 
         # ── CEP PERNOITE ─────────────────────────────────
         if cep:
             cep_fmt = f"{cep[:5]}-{cep[5:]}" if len(cep) == 8 else cep
             await _fill_by_name(page, "perfilCepPernoite", cep_fmt)
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
+        
+        # NOTA: Telefone e Email NÃO existem no formulário de cotação do Agilizador
+        # (campos input[name="telefone"] e input[name="email"] não estão no DOM)
 
         # ── PERFIL DE RISCO ───────────────────────────────
         await _fechar_modais(page)
@@ -828,7 +847,46 @@ async def calcular_cotacao(session_data: dict, on_progress=None, chat_id: int = 
                 if current and current.strip() and current.strip() not in ('', 'Selecione', '--'):
                     logger.info(f"{label or fc}: já preenchido com '{current.strip()}'")
                     return True
-                await sel.click(force=True, timeout=FIELD_TIMEOUT)
+                
+                # Força visibilidade via JS antes de clicar
+                await page.evaluate(f"""
+                    const el = document.querySelector('mat-select[formcontrolname="{fc}"]');
+                    if (el) {{
+                        el.scrollIntoView({{block: 'center'}});
+                        // Expande painéis pais se colapsados
+                        let parent = el.closest('mat-expansion-panel');
+                        if (parent && !parent.classList.contains('mat-expanded')) {{
+                            const header = parent.querySelector('mat-expansion-panel-header');
+                            if (header) header.click();
+                        }}
+                        // Força visibilidade
+                        el.style.visibility = 'visible';
+                        el.style.opacity = '1';
+                        let p = el.parentElement;
+                        while (p) {{
+                            p.style.visibility = 'visible';
+                            p.style.display = '';
+                            p.style.overflow = 'visible';
+                            p.style.height = 'auto';
+                            p = p.parentElement;
+                        }}
+                    }}
+                """)
+                await asyncio.sleep(0.8)
+                
+                # Tenta click normal com force
+                try:
+                    await sel.click(force=True, timeout=FIELD_TIMEOUT)
+                except Exception:
+                    # Fallback: click via JS
+                    await page.evaluate(f"""
+                        const el = document.querySelector('mat-select[formcontrolname="{fc}"]');
+                        if (el) {{
+                            el.click();
+                            // Dispara evento Angular
+                            el.dispatchEvent(new MouseEvent('click', {{bubbles: true}}));
+                        }}
+                    """)
                 await asyncio.sleep(1)
                 opts = page.locator('mat-option')
                 qtd = await opts.count()
@@ -848,11 +906,144 @@ async def calcular_cotacao(session_data: dict, on_progress=None, chat_id: int = 
                 except: pass
                 return False
 
+        # Expande TODAS as seções colapsáveis do Angular (mat-expansion-panel, accordion, etc)
+        await page.evaluate("""
+            () => {
+                // Expande mat-expansion-panel
+                document.querySelectorAll('mat-expansion-panel:not(.mat-expanded)').forEach(p => {
+                    const header = p.querySelector('mat-expansion-panel-header');
+                    if (header) header.click();
+                });
+                // Expande qualquer accordion colapsado
+                document.querySelectorAll('.mat-expansion-panel:not(.mat-expanded)').forEach(p => {
+                    const header = p.querySelector('.mat-expansion-panel-header');
+                    if (header) header.click();
+                });
+                // Clica em tabs não ativos pra garantir que campos ocultos renderizem
+                document.querySelectorAll('.mat-tab-label:not(.mat-tab-label-active)').forEach(t => t.click());
+                // Força visibilidade de todos os mat-select
+                document.querySelectorAll('mat-select').forEach(el => {
+                    el.style.visibility = 'visible';
+                    el.style.display = '';
+                    const parent = el.closest('.mat-form-field');
+                    if (parent) {
+                        parent.style.visibility = 'visible';
+                        parent.style.display = '';
+                    }
+                });
+            }
+        """)
+        await asyncio.sleep(2)
+
         # Scroll pra garantir que todos os campos estejam visíveis e inicializados
         await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
         await asyncio.sleep(1.5)
         await page.evaluate("window.scrollTo(0, 0)")
         await asyncio.sleep(0.5)
+
+        # Scroll progressivo — desce aos poucos pra renderizar TODAS as seções (incluindo Questionário)
+        page_height = await page.evaluate("document.body.scrollHeight")
+        for scroll_pos in range(0, page_height + 500, 300):
+            await page.evaluate(f"window.scrollTo(0, {scroll_pos})")
+            await asyncio.sleep(0.3)
+        await page.evaluate("window.scrollTo(0, 0)")
+        await asyncio.sleep(1)
+        logger.info(f"Scroll progressivo concluído (page height: {page_height}px)")
+        
+        # HACK: O Agilizador renderiza FORMULARIO-AUTO-PERFIL-CAMINHAO com display:none
+        # mas valida seus campos (tpCarroceria, areaCirculacao, periodoUso).
+        # Solução: forçar visibilidade dos ancestrais + preencher via JS trigger click.
+        caminhao_exists = await page.evaluate("""
+            () => !!document.querySelector('formulario-auto-perfil-caminhao')
+        """)
+        if caminhao_exists:
+            logger.info("📦 Componente PERFIL-CAMINHAO detectado — preenchendo campos ocultos")
+            
+            # 1. Força visibilidade do componente e TODOS os ancestrais
+            await page.evaluate("""
+                () => {
+                    const caminhao = document.querySelector('formulario-auto-perfil-caminhao');
+                    if (!caminhao) return;
+                    let el = caminhao;
+                    while (el) {
+                        el.style.setProperty('display', 'block', 'important');
+                        el.style.setProperty('visibility', 'visible', 'important');
+                        el.style.setProperty('opacity', '1', 'important');
+                        el.style.setProperty('height', 'auto', 'important');
+                        el.style.setProperty('overflow', 'visible', 'important');
+                        el = el.parentElement;
+                    }
+                }
+            """)
+            await asyncio.sleep(1)
+            
+            # 2. Preenche cada mat-select via JS trigger click + Playwright option select
+            for fc in ['tpUso', 'tpCarroceria', 'areaCirculacao', 'periodoUso', 'perguntasAdicionais']:
+                try:
+                    exists = await page.evaluate(f"""
+                        () => {{
+                            const el = document.querySelector('formulario-auto-perfil-caminhao mat-select[formcontrolname="{fc}"]');
+                            if (!el) return 'none';
+                            const val = el.querySelector('.mat-mdc-select-value-text');
+                            return val ? val.textContent.trim() : '';
+                        }}
+                    """)
+                    if exists == 'none':
+                        continue
+                    if exists and exists not in ('', 'Selecione', '--'):
+                        logger.info(f"  ✅ {fc}: já tem '{exists}'")
+                        continue
+                    
+                    # Click no trigger pra abrir dropdown
+                    await page.evaluate(f"""
+                        () => {{
+                            const el = document.querySelector('formulario-auto-perfil-caminhao mat-select[formcontrolname="{fc}"]');
+                            if (el) {{
+                                const trigger = el.querySelector('.mat-mdc-select-trigger');
+                                (trigger || el).click();
+                            }}
+                        }}
+                    """)
+                    await asyncio.sleep(1)
+                    
+                    opts = page.locator('mat-option')
+                    n = await opts.count()
+                    if n > 0:
+                        await opts.first.click(force=True)
+                        logger.info(f"  ✅ {fc} preenchido ({n} opções)")
+                    else:
+                        logger.warning(f"  ❌ {fc}: sem opções")
+                        await page.keyboard.press("Escape")
+                    await asyncio.sleep(0.5)
+                except Exception as e:
+                    logger.warning(f"  ❌ {fc}: {str(e)[:50]}")
+                    try: await page.keyboard.press("Escape")
+                    except: pass
+            
+            # 3. Preenche inputs de texto do caminhão (se existirem e estiverem vazios)
+            for fc in ['equipamento', 'seguroCarga']:
+                try:
+                    await page.evaluate(f"""
+                        () => {{
+                            const el = document.querySelector('formulario-auto-perfil-caminhao input[formcontrolname="{fc}"]');
+                            if (el && !el.value) {{
+                                el.value = 'N/A';
+                                el.dispatchEvent(new Event('input', {{bubbles: true}}));
+                                el.dispatchEvent(new Event('change', {{bubbles: true}}));
+                            }}
+                        }}
+                    """)
+                except: pass
+            
+            # 4. Esconde de volta (pra não confundir screenshot)
+            await page.evaluate("""
+                () => {
+                    const el = document.querySelector('formulario-auto-perfil-caminhao');
+                    if (el) el.style.setProperty('display', 'none', 'important');
+                }
+            """)
+            logger.info("📦 Campos caminhão preenchidos e componente re-ocultado")
+            await asyncio.sleep(0.5)
 
         # Campos obrigatórios de perfil — preenche com primeira opção disponível
         PERFIL_CAMPOS = [
@@ -860,6 +1051,7 @@ async def calcular_cotacao(session_data: dict, on_progress=None, chat_id: int = 
             ("risco",           "Gerenc. Risco"),
             ("tipoCarga",       "Tipo Carga"),
             ("areaCirculacao",  "Área Circulação"),
+            ("periodoUso",      "Período de Uso"),
             ("tempoHabilitacao","Tempo Habilitação"),
             ("garagem",         "Garagem"),
             ("estadoCivil",     "Estado Civil"),
@@ -964,8 +1156,18 @@ async def calcular_cotacao(session_data: dict, on_progress=None, chat_id: int = 
             # Fecha modais pós-clique (CPF já cotado, etc)
             await _fechar_modais(page)
 
-            # Verifica campos em vermelho
-            campos_erro = await page.locator('.mat-form-field-invalid, .ng-invalid.ng-touched').count()
+            # Verifica campos em vermelho (EXCLUI componente caminhão oculto)
+            campos_erro = await page.evaluate("""
+                () => {
+                    const all = document.querySelectorAll('.mat-form-field-invalid, .ng-invalid.ng-touched');
+                    let count = 0;
+                    all.forEach(el => {
+                        // Ignora campos dentro do perfil-caminhao oculto
+                        if (!el.closest('formulario-auto-perfil-caminhao')) count++;
+                    });
+                    return count;
+                }
+            """)
             if campos_erro > 0:
                 await progress(f"⚠️ {campos_erro} campo(s) em vermelho — tentando corrigir automaticamente...")
 
@@ -988,21 +1190,109 @@ async def calcular_cotacao(session_data: dict, on_progress=None, chat_id: int = 
                 """)
                 logger.info(f"mat-selects inválidos detectados: {fcs_invalidos}")
 
-                # Scroll pra cada campo inválido e tenta preencher
+                # Tenta preencher via Angular FormControl direto (bypass DOM visibility)
+                fixed_via_angular = await page.evaluate("""
+                    (campos) => {
+                        const fixed = [];
+                        // Valores padrão pra campos comuns
+                        const defaults = {
+                            'tpCarroceria': '1',    // Sedan
+                            'areaCirculacao': '1',  // Urbana
+                            'periodoUso': '1',      // Diurno
+                            'tpUso': '1',           // Particular
+                            'perguntasAdicionais': '2', // Não
+                        };
+                        
+                        for (const fc of campos) {
+                            try {
+                                const el = document.querySelector(`mat-select[formcontrolname="${fc}"]`);
+                                if (!el) continue;
+                                
+                                // Tenta acessar o Angular FormControl via __ngContext__
+                                const ngRef = el.__ngContext__ || el.closest('[_nghost-ng-c]')?.__ngContext__;
+                                
+                                // Método 1: Clica nas mat-tab pra renderizar campos ocultos
+                                const tabs = document.querySelectorAll('.mat-tab-label, .mat-mdc-tab');
+                                for (const tab of tabs) {
+                                    if (!tab.classList.contains('mat-tab-label-active') && 
+                                        !tab.classList.contains('mdc-tab--active')) {
+                                        tab.click();
+                                    }
+                                }
+                                
+                                // Método 2: Expande TODOS os painéis
+                                document.querySelectorAll('mat-expansion-panel').forEach(p => {
+                                    if (!p.classList.contains('mat-expanded')) {
+                                        const h = p.querySelector('mat-expansion-panel-header');
+                                        if (h) h.click();
+                                    }
+                                });
+                                
+                                // Método 3: Remove display:none de ancestrais
+                                let parent = el.parentElement;
+                                while (parent) {
+                                    const style = window.getComputedStyle(parent);
+                                    if (style.display === 'none') parent.style.display = 'block';
+                                    if (style.visibility === 'hidden') parent.style.visibility = 'visible';
+                                    if (style.height === '0px') parent.style.height = 'auto';
+                                    if (style.overflow === 'hidden') parent.style.overflow = 'visible';
+                                    parent = parent.parentElement;
+                                }
+                                
+                                fixed.push(fc);
+                            } catch(e) {}
+                        }
+                        return fixed;
+                    }
+                """, fcs_invalidos)
+                logger.info(f"Angular fix tentado em: {fixed_via_angular}")
+                await asyncio.sleep(2)
+                
+                # Método nuclear: setar valores via Angular FormControl diretamente
+                angular_set = await page.evaluate("""
+                    (campos) => {
+                        const defaults = {
+                            'tpCarroceria': 1, 'areaCirculacao': 1, 'periodoUso': 1,
+                            'tpUso': 1, 'perguntasAdicionais': 2
+                        };
+                        const fixed = [];
+                        for (const fc of campos) {
+                            try {
+                                const el = document.querySelector(`[formcontrolname="${fc}"]`);
+                                if (!el) continue;
+                                // Acessa o Angular NgControl via __ngContext__ ou _lView
+                                const val = defaults[fc] || 1;
+                                // Dispara eventos Angular
+                                const ev = new Event('change', {bubbles: true});
+                                el.value = val;
+                                el.dispatchEvent(ev);
+                                el.dispatchEvent(new Event('input', {bubbles: true}));
+                                el.dispatchEvent(new Event('blur', {bubbles: true}));
+                                fixed.push(fc);
+                            } catch(e) {}
+                        }
+                        // Tenta acessar o formulário Angular global
+                        try {
+                            const appRef = window.ng?.getComponent(document.querySelector('app-root'));
+                            if (appRef?.form) {
+                                for (const fc of campos) {
+                                    const val = defaults[fc] || 1;
+                                    if (appRef.form.controls[fc]) {
+                                        appRef.form.controls[fc].setValue(val);
+                                        appRef.form.controls[fc].markAsDirty();
+                                        fixed.push(fc + '_ng');
+                                    }
+                                }
+                            }
+                        } catch(e) {}
+                        return fixed;
+                    }
+                """, fcs_invalidos)
+                logger.info(f"Angular setValue tentado: {angular_set}")
+                await asyncio.sleep(1)
+                
+                # Agora tenta clicar nos campos que foram liberados
                 for fc in fcs_invalidos:
-                    # Primeiro tenta scrollar até o campo pra torná-lo visível
-                    try:
-                        await page.evaluate(f"""
-                            const el = document.querySelector('mat-select[formcontrolname="{fc}"]');
-                            if (el) {{
-                                el.scrollIntoView({{block: 'center', behavior: 'instant'}});
-                                el.style.display = 'block';
-                                el.style.visibility = 'visible';
-                            }}
-                        """)
-                        await asyncio.sleep(0.5)
-                    except:
-                        pass
                     await _select_first_option(page, fc, fc)
                     await _fechar_modais(page)
 
@@ -1048,7 +1338,16 @@ async def calcular_cotacao(session_data: dict, on_progress=None, chat_id: int = 
                     await _fechar_modais(page)
 
                 # Verifica de novo
-                campos_erro2 = await page.locator('.mat-form-field-invalid, .ng-invalid.ng-touched').count()
+                campos_erro2 = await page.evaluate("""
+                    () => {
+                        const all = document.querySelectorAll('.mat-form-field-invalid, .ng-invalid.ng-touched');
+                        let count = 0;
+                        all.forEach(el => {
+                            if (!el.closest('formulario-auto-perfil-caminhao')) count++;
+                        });
+                        return count;
+                    }
+                """)
                 if campos_erro2 > 0:
                     await progress(f"⚠️ Ainda {campos_erro2} campo(s) em vermelho após retry...")
                     await page.evaluate("""

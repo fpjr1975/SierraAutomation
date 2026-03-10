@@ -86,3 +86,33 @@ Sierra Soluções em Seguros' → /cotacao/residencial/resultados/b8132c93-c3b2-
 2026-03-10 00:20:33,713 [INFO] 📊 Progresso: 170/200 | novas=29 skip=141 erros=0
 2026-03-10 00:20:50,499 [INFO] 📊 Progresso: 180/200 | novas=31 skip=149 erros=0
 2026-03-10 00:21:06,389 [INFO] 📊 Progresso: 190/200 | novas=31 skip=159 erros=0
+2026-03-10 00:29:31,533 [INFO] ============================================================
+2026-03-10 00:29:31,533 [INFO] 🚀 Sync Agilizador v2 — Importar histórico de cotações AUTO
+2026-03-10 00:29:31,533 [INFO]    Limit: 50
+2026-03-10 00:29:31,533 [INFO] ============================================================
+2026-03-10 00:29:31,938 [INFO] ============================================================
+2026-03-10 00:29:31,939 [INFO] 🔐 Fazendo login no Agilizador...
+2026-03-10 00:29:31,940 [INFO] Navegando para login: https://aggilizador.com.br/login
+2026-03-10 00:30:04,404 [INFO] Login OK. URL atual: https://aggilizador.com.br/cotacoes
+2026-03-10 00:30:04,404 [INFO] Navegando para /cotacoes...
+2026-03-10 00:30:07,272 [INFO] 📋 Lista busca/v2 encontrada: https://api.multicalculo.net/calculo/negocio/busca/v2?textoBusca=&modo=2&page=1& (40 segurados)
+2026-03-10 00:30:12,545 [INFO] ============================================================
+2026-03-10 00:30:12,545 [INFO] 📋 Coletando negócios (limit=50)...
+2026-03-10 00:30:12,546 [INFO] Da interceptação https://api.multicalculo.net/calculo/negocio/busca/v2?textoB: 53 negócios
+2026-03-10 00:30:12,546 [INFO] Total de negócios coletados: 53
+2026-03-10 00:30:12,546 [INFO] ✅ 50 negócios encontrados
+2026-03-10 00:30:12,546 [INFO]    Auto: 38 | Outros (residencial, etc): 12
+2026-03-10 00:30:25,601 [INFO] 📊 Progresso: 10/38 | novas=7 skip=3 erros=0
+2026-03-10 00:30:38,578 [INFO] 📊 Progresso: 20/38 | novas=16 skip=4 erros=0
+2026-03-10 00:30:52,414 [INFO] 📊 Progresso: 30/38 | novas=26 skip=4 erros=0
+2026-03-10 00:31:03,863 [INFO] ============================================================
+2026-03-10 00:31:03,864 [INFO] ✅ SYNC CONCLUÍDO
+2026-03-10 00:31:03,864 [INFO]    Total processadas: 38
+2026-03-10 00:31:03,864 [INFO]    Cotações novas:    33
+2026-03-10 00:31:03,864 [INFO]    Cotações skip:     5
+2026-03-10 00:31:03,864 [INFO]    Não-auto (skip):   12
+2026-03-10 00:31:03,864 [INFO]    Clientes novos:    0
+2026-03-10 00:31:03,864 [INFO]    Resultados:        0
+2026-03-10 00:31:03,864 [INFO]    Erros:             0
+2026-03-10 00:31:03,864 [INFO]    Tempo:             92.3s
+2026-03-10 00:31:03,864 [INFO] ============================================================
