@@ -62,11 +62,17 @@ jobs:
             main.py
         shell: cmd
 
+      - name: Zip EXE
+        run: |
+          cd dist
+          powershell Compress-Archive -Path SierraAutomacao.exe -DestinationPath SierraAutomacao-v${{ steps.version.outputs.version }}.zip
+        shell: cmd
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: SierraAutomacao-v${{ steps.version.outputs.version }}
-          path: dist/SierraAutomacao.exe
+          path: dist/SierraAutomacao-v${{ steps.version.outputs.version }}.zip
           retention-days: 90
 
       - name: Create/Update Release
@@ -78,13 +84,12 @@ jobs:
             Build automático do conversor Sierra.
             
             **Instruções:**
-            1. Baixe o `SierraAutomacao.exe`
-            2. Coloque na pasta desejada
-            3. Execute — arraste os PDFs pra converter
+            1. Baixe o `.zip` e extraia
+            2. Execute `SierraAutomacao.exe` — arraste os PDFs pra converter
             
             **Alterações nesta versão:**
             - Bradesco: extração completa de franquias (Teto Solar/Panorâmico, Vidros Laterais, todas variantes de Faróis e Lanternas)
-          files: dist/SierraAutomacao.exe
+          files: dist/SierraAutomacao-v${{ steps.version.outputs.version }}.zip
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
