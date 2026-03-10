@@ -280,6 +280,173 @@ TOOLS_DEFINITIONS = [
             },
             "required": ["resumo", "tipo"]
         }
+    },
+    # ── 2.5.6 ──────────────────────────────────────────────
+    {
+        "name": "processar_endosso",
+        "description": (
+            "Prepara um endosso (alteração de apólice vigente) para o cliente. "
+            "Use quando o cliente quiser trocar de carro, mudar de CEP, incluir condutor ou fazer outra alteração. "
+            "NÃO executa o endosso — apenas prepara o resumo, calcula pro-rata estimado e notifica o corretor."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "numero_apolice": {
+                    "type": "string",
+                    "description": "Número da apólice a ser alterada"
+                },
+                "tipo_endosso": {
+                    "type": "string",
+                    "enum": ["troca_veiculo", "mudanca_cep", "inclusao_condutor", "outros"],
+                    "description": "Tipo de alteração solicitada"
+                },
+                "dados_novos": {
+                    "type": "object",
+                    "description": (
+                        "Dados novos a serem incluídos. Ex.: "
+                        "{'veiculo': 'Honda Civic 2024', 'placa': 'ABC1D23'} ou "
+                        "{'cep': '01310-100'} ou "
+                        "{'condutor_nome': 'Maria Silva', 'condutor_cpf': '000.000.000-00'}"
+                    )
+                }
+            },
+            "required": ["numero_apolice", "tipo_endosso", "dados_novos"]
+        }
+    },
+    # ── 2.5.7 ──────────────────────────────────────────────
+    {
+        "name": "abrir_sinistro",
+        "description": (
+            "Abre um registro de sinistro para o cliente. "
+            "Use quando o cliente relatar acidente, colisão, roubo, furto, incêndio ou alagamento. "
+            "Busca cobertura na apólice, retorna checklist de documentos necessários, "
+            "valor da franquia e telefones de assistência 24h. Notifica o corretor como URGENTE."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "numero_apolice": {
+                    "type": "string",
+                    "description": "Número da apólice do cliente"
+                },
+                "tipo_sinistro": {
+                    "type": "string",
+                    "enum": ["colisao", "roubo", "furto", "incendio", "alagamento", "outros"],
+                    "description": "Tipo do sinistro ocorrido"
+                },
+                "descricao": {
+                    "type": "string",
+                    "description": "Descrição do ocorrido conforme relatado pelo cliente"
+                },
+                "data_ocorrencia": {
+                    "type": "string",
+                    "description": "Data do ocorrido (formato DD/MM/AAAA ou texto livre)"
+                }
+            },
+            "required": ["numero_apolice", "tipo_sinistro", "descricao", "data_ocorrencia"]
+        }
+    },
+    # ── 2.5.8 ──────────────────────────────────────────────
+    {
+        "name": "buscar_documento",
+        "description": (
+            "Busca documentos do cliente na base de dados: apólice, boleto ou proposta. "
+            "Use quando o cliente pedir uma segunda via de documento, apólice ou boleto. "
+            "Retorna o caminho do arquivo ou informa que vai verificar com o corretor."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tipo": {
+                    "type": "string",
+                    "enum": ["apolice", "boleto", "proposta"],
+                    "description": "Tipo de documento solicitado"
+                },
+                "numero_apolice": {
+                    "type": "string",
+                    "description": "Número da apólice (opcional se informar cliente_nome)"
+                },
+                "cliente_nome": {
+                    "type": "string",
+                    "description": "Nome do cliente para busca (opcional se informar numero_apolice)"
+                }
+            },
+            "required": ["tipo"]
+        }
+    },
+    # ── 2.5.9 ──────────────────────────────────────────────
+    {
+        "name": "consultar_assistencia",
+        "description": (
+            "Retorna o telefone de assistência 24h de uma seguradora. "
+            "Use quando o cliente precisar de socorro, guincho ou assistência emergencial. "
+            "Suporta: Porto Seguro, HDI, Tokio Marine, Bradesco, Allianz, Azul, Mapfre, "
+            "Zurich, Liberty/Yelum, Suhai, Itaú."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "seguradora": {
+                    "type": "string",
+                    "description": "Nome da seguradora (ex: 'Porto Seguro', 'HDI', 'Tokio Marine')"
+                }
+            },
+            "required": ["seguradora"]
+        }
+    },
+    # ── 2.5.10 ─────────────────────────────────────────────
+    {
+        "name": "consultar_status_sinistro",
+        "description": (
+            "Consulta o status de um sinistro em aberto pelo número da apólice ou nome do cliente. "
+            "Busca registros na base de dados. Se não houver tabela de sinistros, "
+            "informa que vai verificar com o corretor e notifica."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "numero_apolice": {
+                    "type": "string",
+                    "description": "Número da apólice associada ao sinistro (opcional)"
+                },
+                "nome_cliente": {
+                    "type": "string",
+                    "description": "Nome do cliente (opcional se informar numero_apolice)"
+                }
+            }
+        }
+    },
+    # ── 2.5.11 ─────────────────────────────────────────────
+    {
+        "name": "registrar_indicacao",
+        "description": (
+            "Registra uma indicação feita pelo cliente para um amigo ou familiar. "
+            "Notifica o corretor com os dados da pessoa indicada para que ele entre em contato. "
+            "Retorna agradecimento ao cliente."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "nome_indicado": {
+                    "type": "string",
+                    "description": "Nome da pessoa indicada"
+                },
+                "telefone_indicado": {
+                    "type": "string",
+                    "description": "Telefone/WhatsApp da pessoa indicada"
+                },
+                "ramo_interesse": {
+                    "type": "string",
+                    "description": "Ramo de seguro de interesse (auto, residencial, vida, empresarial, etc.)"
+                },
+                "cliente_indicador": {
+                    "type": "string",
+                    "description": "Nome do cliente que fez a indicação"
+                }
+            },
+            "required": ["nome_indicado", "telefone_indicado", "cliente_indicador"]
+        }
     }
 ]
 
@@ -702,6 +869,626 @@ async def notificar_corretor(resumo: str, tipo: str = "info", urgente: bool = Fa
 
 
 # ─────────────────────────────────────────────────────────────
+#  TELEFONES DE ASSISTÊNCIA 24H (hardcoded)
+# ─────────────────────────────────────────────────────────────
+
+ASSISTENCIA_24H = {
+    "porto seguro":   "0800-727-0800",
+    "porto":          "0800-727-0800",
+    "hdi":            "0800-770-1608",
+    "tokio marine":   "0800-625-9000",
+    "tokio":          "0800-625-9000",
+    "bradesco":       "0800-701-7000",
+    "allianz":        "0800-130-000",
+    "azul":           "0800-703-0203",
+    "mapfre":         "0800-775-4545",
+    "zurich":         "0800-284-4848",
+    "liberty":        "0800-709-6464",
+    "yelum":          "0800-709-6464",
+    "liberty/yelum":  "0800-709-6464",
+    "suhai":          "0800-882-1882",
+    "itaú":           "0800-722-1722",
+    "itau":           "0800-722-1722",
+}
+
+# ─────────────────────────────────────────────────────────────
+#  HELPERS INTERNOS
+# ─────────────────────────────────────────────────────────────
+
+def _fmt_brl(valor) -> str:
+    """Formata valor float/Decimal como R$ X.XXX,XX."""
+    try:
+        return f"R$ {float(valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
+        return str(valor)
+
+
+async def _buscar_apolice_por_numero(numero_apolice: str) -> dict | None:
+    """Busca apólice completa pelo número. Retorna dict ou None."""
+    import psycopg2
+    import psycopg2.extras
+    try:
+        conn = psycopg2.connect("postgresql://sierra:SierraDB2026!!@localhost/sierra_db")
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            SELECT
+                a.id, a.numero_apolice, a.seguradora, a.status, a.ramo,
+                a.vigencia_inicio, a.vigencia_fim, a.premio, a.franquia,
+                a.comissao_percentual, a.comissao_valor,
+                c.nome AS cliente_nome, c.telefone AS cliente_telefone,
+                c.cpf_cnpj, c.cidade, c.uf,
+                v.marca_modelo, v.placa, v.ano_fabricacao
+            FROM apolices a
+            LEFT JOIN clientes c ON a.cliente_id = c.id
+            LEFT JOIN veiculos v ON a.veiculo_id = v.id
+            WHERE UPPER(a.numero_apolice) = UPPER(%s)
+            LIMIT 1
+        """, (numero_apolice.strip(),))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"Erro ao buscar apólice {numero_apolice}: {e}")
+        return None
+
+
+# ─────────────────────────────────────────────────────────────
+#  IMPLEMENTAÇÕES — NOVAS FERRAMENTAS (2.5.6 a 2.5.11)
+# ─────────────────────────────────────────────────────────────
+
+async def processar_endosso(numero_apolice: str, tipo_endosso: str,
+                             dados_novos: dict, bot=None,
+                             cliente_nome: str = None) -> dict:
+    """
+    Prepara resumo de endosso, calcula pro-rata estimado e notifica o corretor.
+    NÃO grava nem executa o endosso.
+    """
+    from datetime import date
+
+    apolice = await _buscar_apolice_por_numero(numero_apolice)
+    if not apolice:
+        return {
+            "sucesso": False,
+            "msg": (
+                f"Não encontrei nenhuma apólice com o número *{numero_apolice}*. "
+                "Verifique o número e tente novamente, ou fale com o corretor."
+            )
+        }
+
+    status = (apolice.get("status") or "").lower()
+    if status not in ("vigente", "ativa", "active"):
+        return {
+            "sucesso": False,
+            "msg": (
+                f"A apólice *{numero_apolice}* está com status *{status}* "
+                "e não pode ser alterada por aqui. Fale com o corretor."
+            )
+        }
+
+    hoje = date.today()
+    vigencia_fim = apolice.get("vigencia_fim")
+    premio = float(apolice.get("premio") or 0)
+
+    if vigencia_fim and premio > 0:
+        dias_restantes = max((vigencia_fim - hoje).days, 0)
+        pro_rata_base = round(dias_restantes / 365 * premio, 2)
+        pro_rata_msg = (
+            f"Pro-rata estimado: {_fmt_brl(pro_rata_base)} "
+            f"({dias_restantes} dias restantes de vigência)"
+        )
+    else:
+        pro_rata_base = None
+        pro_rata_msg = "Pro-rata não calculado (dados de vigência/prêmio incompletos)"
+
+    tipo_labels = {
+        "troca_veiculo":     "Troca de veículo",
+        "mudanca_cep":       "Mudança de CEP/endereço de pernoite",
+        "inclusao_condutor": "Inclusão de condutor",
+        "outros":            "Outro tipo de alteração",
+    }
+    tipo_label = tipo_labels.get(tipo_endosso, tipo_endosso)
+    dados_str = "\n".join(f"  • {k}: {v}" for k, v in dados_novos.items())
+
+    resumo_endosso = (
+        f"📋 *Solicitação de Endosso*\n"
+        f"Apólice: {numero_apolice} — {apolice.get('seguradora', '?')}\n"
+        f"Cliente: {apolice.get('cliente_nome', cliente_nome or '?')}\n"
+        f"Tipo: {tipo_label}\n"
+        f"Dados novos:\n{dados_str}\n"
+        f"{pro_rata_msg}\n"
+        f"Veículo atual: {apolice.get('marca_modelo', '?')} | Placa: {apolice.get('placa', '?')}\n"
+        f"Vigência fim: {apolice.get('vigencia_fim', '?')}"
+    )
+
+    if bot:
+        await notificar_corretor(
+            resumo=resumo_endosso,
+            tipo="info",
+            urgente=False,
+            bot=bot,
+            cliente_nome=apolice.get("cliente_nome", cliente_nome)
+        )
+
+    return {
+        "sucesso": True,
+        "numero_apolice": numero_apolice,
+        "seguradora": apolice.get("seguradora"),
+        "tipo_endosso": tipo_label,
+        "pro_rata_estimado": pro_rata_base,
+        "pro_rata_msg": pro_rata_msg,
+        "msg": (
+            f"Solicitação de endosso registrada! O corretor Eduardo foi notificado "
+            f"e entrará em contato para finalizar a alteração.\n{pro_rata_msg}."
+        )
+    }
+
+
+async def abrir_sinistro(numero_apolice: str, tipo_sinistro: str,
+                          descricao: str, data_ocorrencia: str,
+                          bot=None, cliente_nome: str = None) -> dict:
+    """
+    Registra abertura de sinistro: verifica cobertura, retorna checklist,
+    franquia e telefone de assistência. Notifica corretor como URGENTE.
+    """
+    apolice = await _buscar_apolice_por_numero(numero_apolice)
+    if not apolice:
+        return {
+            "sucesso": False,
+            "msg": (
+                f"Não encontrei a apólice *{numero_apolice}*. "
+                "Vou notificar o corretor para verificar. Confirme o número da apólice."
+            )
+        }
+
+    seguradora = apolice.get("seguradora", "Seguradora")
+    franquia = apolice.get("franquia")
+    franquia_fmt = _fmt_brl(franquia) if franquia else "verificar com corretor"
+
+    tipo_labels = {
+        "colisao":    "Colisão",
+        "roubo":      "Roubo",
+        "furto":      "Furto",
+        "incendio":   "Incêndio",
+        "alagamento": "Alagamento",
+        "outros":     "Sinistro",
+    }
+    tipo_label = tipo_labels.get(tipo_sinistro, tipo_sinistro)
+
+    CHECKLISTS = {
+        "colisao": [
+            "📸 Fotos do local (veículos, placas, danos visíveis)",
+            "📋 Boletim de Ocorrência (BO) — obrigatório se houver terceiros",
+            "🪪 CNH do condutor",
+            "📄 CRLV do veículo",
+            "📝 Dados do terceiro (se houver): nome, CPF, placa, seguradora",
+        ],
+        "roubo": [
+            "📋 Boletim de Ocorrência (BO) — OBRIGATÓRIO",
+            "🪪 CNH do condutor",
+            "📄 CRLV do veículo",
+            "🔑 Chaves do veículo (original + cópia)",
+            "📝 Declaração de roubo assinada",
+        ],
+        "furto": [
+            "📋 Boletim de Ocorrência (BO) — OBRIGATÓRIO",
+            "🪪 CNH do proprietário",
+            "📄 CRLV do veículo",
+            "🔑 Chaves do veículo (original + cópia)",
+        ],
+        "incendio": [
+            "📋 Boletim de Ocorrência (BO)",
+            "📸 Fotos do veículo (antes de remover, se possível)",
+            "🪪 CNH do condutor",
+            "📄 CRLV do veículo",
+            "🚒 Relatório do Corpo de Bombeiros (se houver)",
+        ],
+        "alagamento": [
+            "📸 Fotos do veículo e do local (antes de mover)",
+            "🪪 CNH do proprietário",
+            "📄 CRLV do veículo",
+            "📋 Boletim de Ocorrência (BO) — recomendado",
+            "📍 Endereço onde o veículo estava",
+        ],
+        "outros": [
+            "📸 Fotos do ocorrido",
+            "🪪 CNH do condutor",
+            "📄 CRLV do veículo",
+            "📋 Boletim de Ocorrência (BO) — se aplicável",
+            "📝 Descrição detalhada do ocorrido",
+        ],
+    }
+    checklist = CHECKLISTS.get(tipo_sinistro, CHECKLISTS["outros"])
+    checklist_str = "\n".join(checklist)
+
+    seg_key = seguradora.lower()
+    tel_assistencia = ASSISTENCIA_24H.get(seg_key)
+    if not tel_assistencia:
+        for key, tel in ASSISTENCIA_24H.items():
+            if key in seg_key or seg_key in key:
+                tel_assistencia = tel
+                break
+    tel_assistencia = tel_assistencia or "Consulte o dorso da apólice"
+
+    resumo_corretor = (
+        f"🚨 *SINISTRO — {tipo_label.upper()}*\n"
+        f"Apólice: {numero_apolice} | {seguradora}\n"
+        f"Cliente: {apolice.get('cliente_nome', cliente_nome or '?')}\n"
+        f"Tel: {apolice.get('cliente_telefone', '?')}\n"
+        f"Veículo: {apolice.get('marca_modelo', '?')} | {apolice.get('placa', '?')}\n"
+        f"Data do ocorrido: {data_ocorrencia}\n"
+        f"Descrição: {descricao}\n"
+        f"Franquia: {franquia_fmt}"
+    )
+
+    if bot:
+        await notificar_corretor(
+            resumo=resumo_corretor,
+            tipo="sinistro",
+            urgente=True,
+            bot=bot,
+            cliente_nome=apolice.get("cliente_nome", cliente_nome)
+        )
+
+    return {
+        "sucesso": True,
+        "numero_apolice": numero_apolice,
+        "seguradora": seguradora,
+        "tipo_sinistro": tipo_label,
+        "franquia": franquia_fmt,
+        "assistencia_24h": tel_assistencia,
+        "checklist": checklist,
+        "msg": (
+            f"Sinistro de *{tipo_label}* registrado! O corretor Eduardo foi notificado com URGÊNCIA.\n\n"
+            f"📞 Assistência 24h {seguradora}: *{tel_assistencia}*\n\n"
+            f"💰 Franquia: *{franquia_fmt}*\n\n"
+            f"📋 *Documentos necessários:*\n{checklist_str}"
+        )
+    }
+
+
+async def buscar_documento(tipo: str, numero_apolice: str = None,
+                            cliente_nome: str = None) -> dict:
+    """
+    Busca documentos na tabela documentos/apolices/cotacao_resultados.
+    """
+    import psycopg2
+    import psycopg2.extras
+
+    tipo_labels = {"apolice": "Apólice", "boleto": "Boleto", "proposta": "Proposta"}
+    tipo_label = tipo_labels.get(tipo, tipo)
+
+    if not numero_apolice and not cliente_nome:
+        return {
+            "encontrado": False,
+            "msg": "Informe o número da apólice ou o nome do cliente para buscar o documento."
+        }
+
+    try:
+        conn = psycopg2.connect("postgresql://sierra:SierraDB2026!!@localhost/sierra_db")
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # 1. Busca na tabela documentos
+        if numero_apolice:
+            cur.execute("""
+                SELECT d.id, d.tipo, d.arquivo_path, d.created_at, c.nome AS cliente_nome
+                FROM documentos d
+                LEFT JOIN clientes c ON d.cliente_id = c.id
+                LEFT JOIN apolices a ON a.cliente_id = d.cliente_id
+                WHERE d.tipo ILIKE %s
+                  AND (a.numero_apolice = %s OR d.dados_extraidos::text ILIKE %s)
+                ORDER BY d.created_at DESC LIMIT 1
+            """, (f"%{tipo}%", numero_apolice, f"%{numero_apolice}%"))
+        else:
+            cur.execute("""
+                SELECT d.id, d.tipo, d.arquivo_path, d.created_at, c.nome AS cliente_nome
+                FROM documentos d
+                LEFT JOIN clientes c ON d.cliente_id = c.id
+                WHERE d.tipo ILIKE %s
+                  AND unaccent(lower(c.nome)) ILIKE unaccent(lower(%s))
+                ORDER BY d.created_at DESC LIMIT 1
+            """, (f"%{tipo}%", f"%{cliente_nome}%"))
+
+        row = cur.fetchone()
+        if row and row.get("arquivo_path"):
+            cur.close(); conn.close()
+            return {
+                "encontrado": True,
+                "tipo": tipo_label,
+                "arquivo_path": row["arquivo_path"],
+                "cliente_nome": row.get("cliente_nome"),
+                "msg": f"Encontrei o documento! Caminho: {row['arquivo_path']}"
+            }
+
+        # 2. Busca pdf_path em cotacao_resultados
+        if numero_apolice:
+            cur.execute("""
+                SELECT cr.pdf_path, cr.seguradora, cr.created_at, c.nome AS cliente_nome
+                FROM cotacao_resultados cr
+                JOIN cotacoes co ON cr.cotacao_id = co.id
+                LEFT JOIN apolices a ON a.cotacao_id = co.id
+                LEFT JOIN clientes c ON co.cliente_id = c.id
+                WHERE cr.pdf_path IS NOT NULL
+                  AND (a.numero_apolice = %s OR cr.numero_cotacao = %s)
+                ORDER BY cr.created_at DESC LIMIT 1
+            """, (numero_apolice, numero_apolice))
+        else:
+            cur.execute("""
+                SELECT cr.pdf_path, cr.seguradora, cr.created_at, c.nome AS cliente_nome
+                FROM cotacao_resultados cr
+                JOIN cotacoes co ON cr.cotacao_id = co.id
+                LEFT JOIN clientes c ON co.cliente_id = c.id
+                WHERE cr.pdf_path IS NOT NULL
+                  AND unaccent(lower(c.nome)) ILIKE unaccent(lower(%s))
+                ORDER BY cr.created_at DESC LIMIT 1
+            """, (f"%{cliente_nome}%",))
+
+        row2 = cur.fetchone()
+        cur.close(); conn.close()
+
+        if row2 and row2.get("pdf_path"):
+            return {
+                "encontrado": True,
+                "tipo": tipo_label,
+                "arquivo_path": row2["pdf_path"],
+                "seguradora": row2.get("seguradora"),
+                "cliente_nome": row2.get("cliente_nome"),
+                "msg": f"Encontrei o PDF da cotação. Caminho: {row2['pdf_path']}"
+            }
+
+        busca_ref = numero_apolice or cliente_nome
+        return {
+            "encontrado": False,
+            "msg": (
+                f"Não encontrei o documento ({tipo_label}) para '{busca_ref}'. "
+                "Vou verificar com o corretor e ele entrará em contato com você."
+            )
+        }
+
+    except Exception as e:
+        logger.error(f"Erro ao buscar documento: {e}", exc_info=True)
+        return {
+            "encontrado": False,
+            "msg": "Erro ao consultar documentos. Vou verificar com o corretor."
+        }
+
+
+async def consultar_assistencia(seguradora: str) -> dict:
+    """Retorna telefone de assistência 24h da seguradora."""
+    seg_lower = seguradora.lower().strip()
+
+    telefone = ASSISTENCIA_24H.get(seg_lower)
+    if not telefone:
+        for key, tel in ASSISTENCIA_24H.items():
+            if key in seg_lower or seg_lower in key:
+                telefone = tel
+                break
+
+    if telefone:
+        return {
+            "sucesso": True,
+            "seguradora": seguradora,
+            "telefone_assistencia": telefone,
+            "msg": f"Assistência 24h {seguradora}: *{telefone}*"
+        }
+
+    lista = (
+        "• Porto Seguro: 0800-727-0800\n"
+        "• HDI: 0800-770-1608\n"
+        "• Tokio Marine: 0800-625-9000\n"
+        "• Bradesco: 0800-701-7000\n"
+        "• Allianz: 0800-130-000\n"
+        "• Azul: 0800-703-0203\n"
+        "• Mapfre: 0800-775-4545\n"
+        "• Zurich: 0800-284-4848\n"
+        "• Liberty/Yelum: 0800-709-6464\n"
+        "• Suhai: 0800-882-1882\n"
+        "• Itaú: 0800-722-1722"
+    )
+    return {
+        "sucesso": False,
+        "seguradora": seguradora,
+        "msg": (
+            f"Não encontrei o telefone específico para '{seguradora}'. "
+            f"Principais contatos de assistência 24h:\n{lista}"
+        )
+    }
+
+
+async def consultar_status_sinistro(numero_apolice: str = None,
+                                     nome_cliente: str = None,
+                                     bot=None) -> dict:
+    """
+    Consulta status de sinistro. Se não há tabela sinistros,
+    notifica o corretor e informa o cliente.
+    """
+    import psycopg2
+    import psycopg2.extras
+
+    if not numero_apolice and not nome_cliente:
+        return {"encontrado": False, "msg": "Informe o número da apólice ou o seu nome."}
+
+    try:
+        conn = psycopg2.connect("postgresql://sierra:SierraDB2026!!@localhost/sierra_db")
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        cur.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name = 'sinistros'
+            )
+        """)
+        tem_tabela = cur.fetchone()["exists"]
+
+        if tem_tabela:
+            if numero_apolice:
+                cur.execute("""
+                    SELECT s.*, a.seguradora, c.nome AS cliente_nome
+                    FROM sinistros s
+                    JOIN apolices a ON s.apolice_id = a.id
+                    JOIN clientes c ON a.cliente_id = c.id
+                    WHERE a.numero_apolice = %s
+                    ORDER BY s.created_at DESC LIMIT 5
+                """, (numero_apolice,))
+            else:
+                cur.execute("""
+                    SELECT s.*, a.seguradora, c.nome AS cliente_nome
+                    FROM sinistros s
+                    JOIN apolices a ON s.apolice_id = a.id
+                    JOIN clientes c ON a.cliente_id = c.id
+                    WHERE unaccent(lower(c.nome)) ILIKE unaccent(lower(%s))
+                    ORDER BY s.created_at DESC LIMIT 5
+                """, (f"%{nome_cliente}%",))
+
+            rows = cur.fetchall()
+            cur.close(); conn.close()
+
+            if rows:
+                return {
+                    "encontrado": True,
+                    "sinistros": [dict(r) for r in rows],
+                    "msg": f"Encontrei {len(rows)} sinistro(s) registrado(s)."
+                }
+            return {
+                "encontrado": False,
+                "msg": "Nenhum sinistro encontrado. Se é recente, pode ainda estar sendo registrado."
+            }
+
+        cur.close(); conn.close()
+
+        ref = numero_apolice or nome_cliente
+        if bot:
+            await notificar_corretor(
+                resumo=(
+                    f"📋 Consulta de status de sinistro\n"
+                    f"Referência: {ref}\n"
+                    f"Cliente solicitou via chatbot."
+                ),
+                tipo="info",
+                urgente=False,
+                bot=bot,
+                cliente_nome=nome_cliente
+            )
+
+        return {
+            "encontrado": False,
+            "msg": (
+                "Ainda não tenho acesso ao histórico de sinistros pelo chat. "
+                "O corretor Eduardo foi notificado e entrará em contato com o status em breve!"
+            )
+        }
+
+    except Exception as e:
+        logger.error(f"Erro ao consultar sinistro: {e}", exc_info=True)
+        return {
+            "encontrado": False,
+            "msg": "Erro ao consultar sinistro. Vou verificar com o corretor."
+        }
+
+
+async def registrar_indicacao(nome_indicado: str, telefone_indicado: str,
+                               cliente_indicador: str,
+                               ramo_interesse: str = None,
+                               bot=None) -> dict:
+    """Registra indicação e notifica o corretor."""
+    ramo_str = f"\nRamo de interesse: {ramo_interesse}" if ramo_interesse else ""
+    resumo = (
+        f"🎁 *Nova Indicação*\n"
+        f"Indicador: {cliente_indicador}\n"
+        f"Indicado: {nome_indicado}\n"
+        f"Telefone: {telefone_indicado}{ramo_str}\n\n"
+        f"_Entre em contato para aproveitar a indicação!_"
+    )
+
+    notif_ok = False
+    if bot:
+        r = await notificar_corretor(
+            resumo=resumo,
+            tipo="info",
+            urgente=False,
+            bot=bot,
+            cliente_nome=cliente_indicador
+        )
+        notif_ok = r.get("sucesso", False)
+
+    return {
+        "sucesso": True,
+        "nome_indicado": nome_indicado,
+        "telefone_indicado": telefone_indicado,
+        "ramo_interesse": ramo_interesse,
+        "corretor_notificado": notif_ok,
+        "msg": (
+            f"Obrigado pela indicação, {cliente_indicador}! 🎉\n"
+            f"Vamos entrar em contato com {nome_indicado} em breve. "
+            "Agradecemos muito pela confiança!"
+        )
+    }
+
+
+# ─────────────────────────────────────────────────────────────
+#  ARBITRAGEM — análise de resultados de cotação
+# ─────────────────────────────────────────────────────────────
+
+def analisar_arbitragem(resultados: list) -> dict:
+    """
+    Analisa resultados de cotação e retorna sweet spot, dispersão e sugestão.
+
+    Args:
+        resultados: lista de dicts com 'seguradora', 'premio' e opcionalmente
+                    'comissao_percentual'.
+    Returns:
+        dict com sweet_spot, dispersao, sugestao_cliente, analise_interna
+    """
+    if not resultados:
+        return {}
+
+    validos = [r for r in resultados if r.get("premio") and float(r.get("premio", 0)) > 0]
+    if not validos:
+        return {}
+
+    premios = [float(r["premio"]) for r in validos]
+    menor = min(premios)
+    maior = max(premios)
+    dispersao_pct = round((maior - menor) / menor * 100, 1) if menor > 0 else 0
+
+    def score_interno(r):
+        premio = float(r.get("premio", 9999999))
+        comissao = float(r.get("comissao_percentual") or 0)
+        normalized_premio = (premio - menor) / (maior - menor + 0.01)
+        normalized_comissao = comissao / 100.0
+        # Sweet spot: 60% peso no menor prêmio, 40% na maior comissão
+        return normalized_comissao * 0.4 + (1 - normalized_premio) * 0.6
+
+    melhor_interno = max(validos, key=score_interno)
+    melhor_preco = min(validos, key=lambda r: float(r.get("premio", 9999999)))
+
+    sweet_spot_seg = melhor_interno.get("seguradora", "?")
+    sweet_spot_premio = _fmt_brl(melhor_interno.get("premio"))
+
+    return {
+        "sweet_spot": sweet_spot_seg,
+        "sweet_spot_premio_fmt": sweet_spot_premio,
+        "dispersao_percentual": dispersao_pct,
+        "dispersao_msg": (
+            f"Dispersão de preços: {dispersao_pct}% entre a menor e maior cotação "
+            f"({_fmt_brl(menor)} a {_fmt_brl(maior)})."
+        ),
+        "sugestao_cliente": (
+            f"A {sweet_spot_seg} oferece o melhor equilíbrio entre preço e cobertura "
+            f"({sweet_spot_premio}/ano)."
+        ),
+        "analise_interna": {
+            "sweet_spot_seguradora": sweet_spot_seg,
+            "sweet_spot_comissao_pct": melhor_interno.get("comissao_percentual"),
+            "menor_preco_seguradora": melhor_preco.get("seguradora"),
+            "menor_preco_valor": melhor_preco.get("premio"),
+            "maior_preco_valor": maior,
+            "dispersao_percentual": dispersao_pct,
+        }
+    }
+
+
+# ─────────────────────────────────────────────────────────────
 #  DISPATCHER: executa a ferramenta pelo nome
 # ─────────────────────────────────────────────────────────────
 
@@ -727,19 +1514,41 @@ async def executar_ferramenta(nome: str, parametros: dict,
         return await buscar_cep(parametros["cep"])
 
     elif nome == "calcular_cotacao":
-        return await calcular_cotacao_tool(
+        resultado = await calcular_cotacao_tool(
             session_data=parametros["session_data"],
             chat_id=parametros["chat_id"],
             on_progress=on_progress
         )
+        # ── arbitragem: sweet spot + dispersão ──────────────
+        try:
+            resultados_lista = resultado.get("resultados") or resultado.get("seguradoras") or []
+            if resultados_lista:
+                arb = analisar_arbitragem(resultados_lista)
+                if arb:
+                    resultado["arbitragem"] = arb
+                    resultado["sugestao_cliente"] = arb.get("sugestao_cliente", "")
+        except Exception as _arb_err:
+            logger.warning(f"Erro ao calcular arbitragem: {_arb_err}")
+        return resultado
 
     elif nome == "gerar_pdf_sierra":
-        return await gerar_pdf_sierra_tool(
+        resultado = await gerar_pdf_sierra_tool(
             seguradora=parametros["seguradora"],
             chat_id=parametros["chat_id"],
             premio_esperado=parametros.get("premio_esperado"),
             on_progress=on_progress
         )
+        # ── arbitragem: se o resultado vier com lista de preços ─
+        try:
+            resultados_lista = resultado.get("resultados") or resultado.get("seguradoras") or []
+            if resultados_lista:
+                arb = analisar_arbitragem(resultados_lista)
+                if arb:
+                    resultado["arbitragem"] = arb
+                    resultado["sugestao_cliente"] = arb.get("sugestao_cliente", "")
+        except Exception as _arb_err:
+            logger.warning(f"Erro ao calcular arbitragem (pdf): {_arb_err}")
+        return resultado
 
     elif nome == "buscar_cliente":
         return await buscar_cliente(parametros["busca"])
