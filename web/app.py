@@ -27,6 +27,8 @@ from routers.documentos_router import router as documentos_router
 from routers.seguranca_router import router as seguranca_router
 from routers.apolices_router import router as apolices_router
 from routers.gestor_router import router as gestor_router
+from routers.arbitragem_router import router as arbitragem_router
+from routers.comissoes_router import router as comissoes_router
 
 
 @asynccontextmanager
@@ -66,6 +68,8 @@ app.include_router(documentos_router)
 app.include_router(seguranca_router)
 app.include_router(apolices_router)
 app.include_router(gestor_router)
+app.include_router(arbitragem_router)
+app.include_router(comissoes_router)
 
 # Static files
 app.mount("/static", StaticFiles(directory="/root/sierra/web/static"), name="static")
@@ -122,6 +126,16 @@ async def apolices_page():
 @app.get("/gestor", response_class=HTMLResponse)
 async def gestor_page():
     return _serve("gestor.html")
+
+
+@app.get("/arbitragem", response_class=HTMLResponse)
+async def arbitragem_page():
+    return _serve("arbitragem.html")
+
+
+@app.get("/comissoes", response_class=HTMLResponse)
+async def comissoes_page():
+    return _serve("comissoes.html")
 
 
 @app.get("/health")

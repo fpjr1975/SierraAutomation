@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sierra — Dashboard de Comissões</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#f8f9fb;--card:#fff;--border:#eaecf0;--text:#101828;--text-2:#344054;--text-3:#667085;--text-4:#98a2b3;--blue-700:#1a5276;--blue-600:#2471a3;--blue-500:#2980b9;--blue-100:#dbeafe;--blue-50:#eff6ff;--green-700:#047857;--green-600:#059669;--green-100:#d1fae5;--green-50:#ecfdf5;--gold-600:#d97706;--gold-100:#fef3c7;--red-500:#ef4444;--red-100:#fee2e2;--purple-600:#7c3aed;--purple-50:#f5f3ff;--radius-lg:14px;--shadow-sm:0 1px 2px rgba(0,0,0,.05);--shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04)}
+        body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;min-height:100vh}
+        .layout{display:flex;min-height:100vh}
+        .sidebar{width:240px;background:#fff;border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50}
+        .sidebar-brand{padding:16px 20px 18px;border-bottom:1px solid var(--border);margin-bottom:8px;text-align:center}
+        .sidebar-brand img{height:38px;display:block;margin:0 auto 6px}
+        .sidebar-brand span{font-size:10px;color:var(--text-4);font-weight:600;letter-spacing:.8px;text-transform:uppercase;display:block}
+        .sidebar-nav{flex:1;padding:4px 8px}
+        .sidebar-nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-3);text-decoration:none;font-size:13px;font-weight:500;transition:all .15s;margin-bottom:2px}
+        .sidebar-nav a:hover{background:var(--blue-50);color:var(--blue-700)}
+        .sidebar-nav a.active{background:var(--blue-50);color:var(--blue-700);font-weight:600}
+        .sidebar-nav a .icon{width:18px;text-align:center;font-size:15px}
+        .sidebar-nav .section{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;padding:16px 12px 6px}
+        .sidebar-footer{padding:12px 20px;border-top:1px solid var(--border)}
+        .sidebar-user{font-size:12px;color:var(--text-3)}.sidebar-user strong{color:var(--text);font-weight:600}
+        .btn-logout{background:none;border:none;color:var(--text-4);font-size:11px;cursor:pointer;padding:4px 0;font-family:inherit}
+        .main{margin-left:240px;flex:1;min-width:0}
+        @media(max-width:768px){.sidebar{transform:translateX(-100%)}.main{margin-left:0}}
+        .header{padding:24px 32px 0}
+        .header h2{font-size:22px;font-weight:700;letter-spacing:-.5px}
+        .header p{font-size:13px;color:var(--text-3);margin-top:2px}
+        .content{padding:20px 32px 40px;max-width:1100px}
+        /* Cards */
+        .cards-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px}
+        .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;box-shadow:var(--shadow-sm)}
+        .card-label{font-size:11px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+        .card-value{font-size:26px;font-weight:700;color:var(--text);letter-spacing:-.5px}
+        .card-sub{font-size:11px;color:var(--text-3);margin-top:4px}
+        /* Chart */
+        .chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:24px;box-shadow:var(--shadow-sm)}
+        .chart-card h3{font-size:14px;font-weight:600;margin-bottom:16px;color:var(--text-2)}
+        .chart-wrap{position:relative;height:240px}
+        /* Table */
+        .table-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow);margin-bottom:24px}
+        .table-card h3{padding:14px 20px;font-size:14px;font-weight:600;border-bottom:1px solid var(--border);color:var(--text-2)}
+        table{width:100%;border-collapse:collapse}
+        th{background:var(--blue-50);padding:10px 14px;font-size:11px;font-weight:600;color:var(--blue-700);text-transform:uppercase;letter-spacing:.3px;text-align:left;border-bottom:1px solid var(--border)}
+        th.right,td.right{text-align:right}
+        td{padding:10px 14px;font-size:13px;border-bottom:1px solid var(--border)}
+        tr:last-child td{border-bottom:none}
+        tr:hover td{background:var(--bg)}
+        /* Stress test */
+        .stress-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:24px;box-shadow:var(--shadow-sm)}
+        .stress-card h3{font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text-2)}
+        .stress-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+        .stress-row select{padding:9px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:#fff;outline:none;min-width:200px}
+        .stress-row select:focus{border-color:var(--blue-500)}
+        .btn{padding:9px 20px;border-radius:8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;transition:all .15s}
+        .btn-primary{background:var(--blue-700);color:#fff}.btn-primary:hover{background:var(--blue-600)}
+        .stress-result{display:none}
+        .stress-result.show{display:block}
+        .risk-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+        .risk-alto{background:var(--red-100);color:var(--red-500)}
+        .risk-medio{background:var(--gold-100);color:#92400e}
+        .risk-baixo{background:var(--green-100);color:var(--green-700)}
+        .impact-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:14px 0}
+        .impact-item{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+        .impact-label{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;margin-bottom:4px}
+        .impact-val{font-size:18px;font-weight:700;color:var(--text)}
+        .impact-sub{font-size:11px;color:var(--text-3)}
+        /* Spinner */
+        .spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--blue-500);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .projecao-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:24px;box-shadow:var(--shadow-sm)}
+        .projecao-card h3{font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text-2)}
+        .proj-row{display:flex;gap:12px;flex-wrap:wrap}
+        .proj-item{flex:1;min-width:160px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+        .proj-mes{font-size:12px;font-weight:600;color:var(--text-4);margin-bottom:6px}
+        .proj-val{font-size:20px;font-weight:700;color:var(--purple-600)}
+        .proj-sub{font-size:11px;color:var(--text-3);margin-top:3px}
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <img src="/static/logo-sierra-full.png" alt="Sierra" onerror="this.style.display='none'">
+            <span>Vértice</span>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="section">Principal</div>
+            <a href="/analytics"><span class="icon">📊</span> Painel Gerencial</a>
+            <a href="/dashboard"><span class="icon">🏠</span> Dashboard</a>
+            <a href="/cotacoes"><span class="icon">🧮</span> Nova Cotação</a>
+            <a href="/clientes"><span class="icon">👥</span> Clientes</a>
+            <a href="/apolices"><span class="icon">📋</span> Apólices</a>
+            <div class="section">Inteligência</div>
+            <a href="/arbitragem"><span class="icon">⚖️</span> Arbitragem</a>
+            <a href="/comissoes" class="active"><span class="icon">💰</span> Comissões</a>
+            <div class="section">Ferramentas</div>
+            <a href="/renovacoes"><span class="icon">🔄</span> Renovações</a>
+            <a href="/conversor"><span class="icon">📄</span> Conversor PDF</a>
+            <div class="section">Sistema</div>
+            <a href="/seguranca"><span class="icon">🔒</span> Segurança</a>
+            <div class="section" id="adminSection" style="display:none">Administração</div>
+            <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user"><strong id="userName">—</strong><br>Sierra Seguros</div>
+            <button class="btn-logout" onclick="logout()">Sair</button>
+        </div>
+    </aside>
+
+    <div class="main">
+        <div class="header">
+            <h2>💰 Dashboard de Comissões</h2>
+            <p>Comissões esperadas com base nas apólices vigentes</p>
+        </div>
+        <div class="content">
+
+            <!-- Cards Resumo -->
+            <div class="cards-row">
+                <div class="card">
+                    <div class="card-label">📅 Esperado Mês Atual</div>
+                    <div class="card-value" id="valMes">…</div>
+                    <div class="card-sub" id="subMes">Carregando…</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">📆 Acumulado no Ano</div>
+                    <div class="card-value" id="valAno">…</div>
+                    <div class="card-sub">Apólices emitidas no ano</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">🔮 Projeção Trimestral</div>
+                    <div class="card-value" id="valTrimestral">…</div>
+                    <div class="card-sub">Próximos 90 dias</div>
+                </div>
+            </div>
+
+            <!-- Gráfico por mês -->
+            <div class="chart-card">
+                <h3>📈 Comissões por Mês</h3>
+                <div class="chart-wrap">
+                    <canvas id="chartMes"></canvas>
+                </div>
+            </div>
+
+            <!-- Projeção próximos meses -->
+            <div class="projecao-card">
+                <h3>🔮 Projeção — Vigências a Vencer</h3>
+                <div class="proj-row" id="projRow">
+                    <div style="color:var(--text-4);font-size:13px">Carregando…</div>
+                </div>
+            </div>
+
+            <!-- Tabela por seguradora -->
+            <div class="table-card">
+                <h3>🏢 Por Seguradora</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Seguradora</th>
+                            <th class="right">Apólices</th>
+                            <th class="right">Prêmio Total</th>
+                            <th class="right">Comissão Média %</th>
+                            <th class="right">Comissão Total</th>
+                            <th class="right">Participação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodySeguradora"></tbody>
+                </table>
+            </div>
+
+            <!-- Tabela por produtor -->
+            <div class="table-card">
+                <h3>👤 Por Produtor</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Produtor</th>
+                            <th class="right">Apólices</th>
+                            <th class="right">Prêmio Total</th>
+                            <th class="right">Comissão Total</th>
+                            <th class="right">Participação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyProdutor"></tbody>
+                </table>
+            </div>
+
+            <!-- Stress Test -->
+            <div class="stress-card">
+                <h3>🔥 Stress Test de Carteira</h3>
+                <p style="font-size:12px;color:var(--text-3);margin-bottom:12px">Simule o impacto de perder uma seguradora da sua carteira</p>
+                <div class="stress-row">
+                    <select id="stressSelect">
+                        <option value="">— Selecione a seguradora —</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="runStressTest()">Simular</button>
+                </div>
+                <div id="stressResult" class="stress-result">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                        <strong id="stressSeguradora" style="font-size:15px"></strong>
+                        <span class="risk-badge" id="stressRisk"></span>
+                    </div>
+                    <div class="impact-grid" id="stressGrid"></div>
+                    <div id="stressAlternativas" style="margin-top:14px"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+const token = localStorage.getItem('sierra_token');
+if (!token) location.href = '/';
+
+function logout() {
+    localStorage.removeItem('sierra_token');
+    location.href = '/';
+}
+
+function fmt(v, prefix='R$ ') {
+    if (v == null) return '—';
+    return prefix + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function fmtPct(v) { return v != null ? v.toFixed(1)+'%' : '—'; }
+
+let chartInstance = null;
+
+async function apiFetch(url) {
+    const r = await fetch(url, {headers:{'Authorization':'Bearer '+token}});
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+}
+
+async function init() {
+    // User info
+    try {
+        const u = await apiFetch('/api/auth/me');
+        document.getElementById('userName').textContent = u.nome || u.email || '—';
+        if (u.is_admin) {
+            document.getElementById('adminSection').style.display = '';
+            document.getElementById('gestorLink').style.display = '';
+        }
+    } catch(e) { logout(); return; }
+
+    // Load all sections in parallel
+    const [resumo, porMes, porSeguradora, porProdutor, projecao] = await Promise.allSettled([
+        apiFetch('/api/comissoes/resumo'),
+        apiFetch('/api/comissoes/por-mes'),
+        apiFetch('/api/comissoes/por-seguradora'),
+        apiFetch('/api/comissoes/por-produtor'),
+        apiFetch('/api/comissoes/projecao'),
+    ]);
+
+    if (resumo.status === 'fulfilled') renderResumo(resumo.value);
+    if (porMes.status === 'fulfilled') renderChart(porMes.value);
+    if (porSeguradora.status === 'fulfilled') {
+        renderTableSeguradora(porSeguradora.value);
+        populateStressSelect(porSeguradora.value);
+    }
+    if (porProdutor.status === 'fulfilled') renderTableProdutor(porProdutor.value);
+    if (projecao.status === 'fulfilled') renderProjecao(projecao.value);
+}
+
+function renderResumo(d) {
+    document.getElementById('valMes').textContent = fmt(d.mes_atual);
+    document.getElementById('subMes').textContent = d.mes_referencia;
+    document.getElementById('valAno').textContent = fmt(d.acumulado_ano);
+    document.getElementById('valTrimestral').textContent = fmt(d.projecao_trimestral);
+}
+
+function renderChart(data) {
+    const labels = data.map(d => d.mes_label);
+    const values = data.map(d => d.comissao_total);
+    const ctx = document.getElementById('chartMes').getContext('2d');
+    if (chartInstance) chartInstance.destroy();
+    chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Comissão esperada (R$)',
+                data: values,
+                backgroundColor: 'rgba(26,82,118,0.8)',
+                borderColor: '#1a5276',
+                borderWidth: 1,
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {display: false},
+                tooltip: {
+                    callbacks: {
+                        label: ctx => 'R$ ' + ctx.raw.toLocaleString('pt-BR', {minimumFractionDigits:2})
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: v => 'R$ ' + (v/1000).toFixed(0) + 'k'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderTableSeguradora(data) {
+    const tbody = document.getElementById('tbodySeguradora');
+    if (!data.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-4)">Sem dados</td></tr>'; return; }
+    tbody.innerHTML = data.map(r => `
+        <tr>
+            <td><strong>${r.seguradora}</strong></td>
+            <td class="right">${r.total_apolices}</td>
+            <td class="right">${fmt(r.premio_total)}</td>
+            <td class="right">${fmtPct(r.comissao_media_pct)}</td>
+            <td class="right"><strong>${fmt(r.comissao_total)}</strong></td>
+            <td class="right">${fmtPct(r.participacao_pct)}</td>
+        </tr>
+    `).join('');
+}
+
+function renderTableProdutor(data) {
+    const tbody = document.getElementById('tbodyProdutor');
+    if (!data.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-4)">Sem dados</td></tr>'; return; }
+    tbody.innerHTML = data.map(r => `
+        <tr>
+            <td><strong>${r.produtor}</strong></td>
+            <td class="right">${r.total_apolices}</td>
+            <td class="right">${fmt(r.premio_total)}</td>
+            <td class="right"><strong>${fmt(r.comissao_total)}</strong></td>
+            <td class="right">${fmtPct(r.participacao_pct)}</td>
+        </tr>
+    `).join('');
+}
+
+function renderProjecao(data) {
+    const div = document.getElementById('projRow');
+    if (!data.length) {
+        div.innerHTML = '<div style="color:var(--text-4);font-size:13px">Nenhuma vigência encerrando nos próximos 90 dias.</div>';
+        return;
+    }
+    div.innerHTML = data.map(r => `
+        <div class="proj-item">
+            <div class="proj-mes">${r.mes_label}</div>
+            <div class="proj-val">${fmt(r.comissao_projetada)}</div>
+            <div class="proj-sub">${r.renovacoes_previstas} apólices vencem</div>
+            <div class="proj-sub">Prêmio em risco: ${fmt(r.premio_em_risco)}</div>
+        </div>
+    `).join('');
+}
+
+function populateStressSelect(data) {
+    const sel = document.getElementById('stressSelect');
+    data.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.seguradora;
+        opt.textContent = r.seguradora;
+        sel.appendChild(opt);
+    });
+}
+
+async function runStressTest() {
+    const seg = document.getElementById('stressSelect').value;
+    if (!seg) { alert('Selecione uma seguradora'); return; }
+    try {
+        const d = await apiFetch(`/api/comissoes/stress-test?seguradora=${encodeURIComponent(seg)}`);
+        renderStressResult(d);
+    } catch(e) {
+        alert('Erro ao executar stress test');
+    }
+}
+
+function renderStressResult(d) {
+    document.getElementById('stressSeguradora').textContent = `Se ${d.seguradora_simulada} sair da carteira:`;
+    const riskEl = document.getElementById('stressRisk');
+    riskEl.textContent = `Risco ${d.nivel_risco}`;
+    riskEl.className = 'risk-badge risk-' + d.nivel_risco.toLowerCase().replace('é','e');
+
+    const grid = document.getElementById('stressGrid');
+    const i = d.impacto;
+    grid.innerHTML = `
+        <div class="impact-item">
+            <div class="impact-label">Apólices afetadas</div>
+            <div class="impact-val">${i.apolices_afetadas}</div>
+            <div class="impact-sub">${i.pct_apolices}% da carteira</div>
+        </div>
+        <div class="impact-item">
+            <div class="impact-label">Prêmio em risco</div>
+            <div class="impact-val">${fmt(i.premio_total_risco)}</div>
+            <div class="impact-sub">${i.pct_premio}% do prêmio total</div>
+        </div>
+        <div class="impact-item">
+            <div class="impact-label">Comissão em risco</div>
+            <div class="impact-val">${fmt(i.comissao_risco)}</div>
+            <div class="impact-sub">Estimativa</div>
+        </div>
+        <div class="impact-item">
+            <div class="impact-label">Clientes afetados</div>
+            <div class="impact-val">${i.clientes_afetados}</div>
+            <div class="impact-sub">${i.pct_clientes}% da base</div>
+        </div>
+    `;
+
+    if (d.alternativas.length) {
+        document.getElementById('stressAlternativas').innerHTML = `
+            <p style="font-size:12px;font-weight:600;color:var(--text-3);margin-bottom:8px">Alternativas disponíveis na carteira:</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                ${d.alternativas.map(a => `
+                    <div style="background:var(--blue-50);border:1px solid var(--blue-100);border-radius:8px;padding:8px 12px;font-size:12px">
+                        <strong>${a.seguradora}</strong><br>
+                        ${a.total_apolices} apólices · ${fmt(a.premio_total)}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    document.getElementById('stressResult').classList.add('show');
+}
+
+init();
+</script>
+</body>
+</html>

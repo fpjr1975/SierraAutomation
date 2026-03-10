@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sierra — Arbitragem de Prêmio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#f8f9fb;--card:#fff;--border:#eaecf0;--text:#101828;--text-2:#344054;--text-3:#667085;--text-4:#98a2b3;--blue-700:#1a5276;--blue-600:#2471a3;--blue-500:#2980b9;--blue-100:#dbeafe;--blue-50:#eff6ff;--green-700:#047857;--green-600:#059669;--green-100:#d1fae5;--green-50:#ecfdf5;--gold-600:#d97706;--gold-100:#fef3c7;--red-500:#ef4444;--red-100:#fee2e2;--radius-lg:14px;--shadow-sm:0 1px 2px rgba(0,0,0,.05);--shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04)}
+        body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;min-height:100vh}
+        .layout{display:flex;min-height:100vh}
+        .sidebar{width:240px;background:#fff;border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50}
+        .sidebar-brand{padding:16px 20px 18px;border-bottom:1px solid var(--border);margin-bottom:8px;text-align:center}
+        .sidebar-brand img{height:38px;display:block;margin:0 auto 6px}
+        .sidebar-brand span{font-size:10px;color:var(--text-4);font-weight:600;letter-spacing:.8px;text-transform:uppercase;display:block}
+        .sidebar-nav{flex:1;padding:4px 8px}
+        .sidebar-nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:var(--text-3);text-decoration:none;font-size:13px;font-weight:500;transition:all .15s;margin-bottom:2px}
+        .sidebar-nav a:hover{background:var(--blue-50);color:var(--blue-700)}
+        .sidebar-nav a.active{background:var(--blue-50);color:var(--blue-700);font-weight:600}
+        .sidebar-nav a .icon{width:18px;text-align:center;font-size:15px}
+        .sidebar-nav .section{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;padding:16px 12px 6px}
+        .sidebar-footer{padding:12px 20px;border-top:1px solid var(--border)}
+        .sidebar-user{font-size:12px;color:var(--text-3)}.sidebar-user strong{color:var(--text);font-weight:600}
+        .btn-logout{background:none;border:none;color:var(--text-4);font-size:11px;cursor:pointer;padding:4px 0;font-family:inherit}
+        .main{margin-left:240px;flex:1;min-width:0}
+        @media(max-width:768px){.sidebar{transform:translateX(-100%)}.main{margin-left:0}}
+        .header{padding:24px 32px 0}
+        .header h2{font-size:22px;font-weight:700;letter-spacing:-.5px}
+        .header p{font-size:13px;color:var(--text-3);margin-top:2px}
+        .content{padding:20px 32px 40px}
+        /* Select */
+        .select-row{display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap}
+        .select-row label{font-size:12px;font-weight:600;color:var(--text-3);white-space:nowrap}
+        .select-row select{flex:1;min-width:260px;max-width:500px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:#fff;outline:none;color:var(--text);cursor:pointer}
+        .select-row select:focus{border-color:var(--blue-500)}
+        /* Cards resumo */
+        .cards-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px}
+        .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;box-shadow:var(--shadow-sm)}
+        .card-label{font-size:11px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+        .card-value{font-size:24px;font-weight:700;color:var(--text);letter-spacing:-.5px}
+        .card-sub{font-size:11px;color:var(--text-3);margin-top:3px}
+        .card.alert{border-color:#fca5a5;background:var(--red-100)}
+        .card.alert .card-value{color:var(--red-500)}
+        .card.good{border-color:#6ee7b7;background:var(--green-50)}
+        .card.good .card-value{color:var(--green-700)}
+        /* Table */
+        .table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow)}
+        .table-title{padding:14px 20px 10px;font-size:13px;font-weight:600;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+        table{width:100%;border-collapse:collapse}
+        th{background:var(--blue-50);padding:10px 14px;font-size:11px;font-weight:600;color:var(--blue-700);text-transform:uppercase;letter-spacing:.3px;text-align:left;border-bottom:1px solid var(--border)}
+        td{padding:10px 14px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle}
+        tr:last-child td{border-bottom:none}
+        tr:hover td{background:var(--bg)}
+        tr.sweet-spot td{background:#f0fdf4;font-weight:500}
+        tr.sweet-spot td:first-child{border-left:3px solid var(--green-600)}
+        /* Tags */
+        .tag{display:inline-block;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:600;margin:2px 2px 2px 0;white-space:nowrap}
+        .tag-barato{background:#dbeafe;color:#1d4ed8}
+        .tag-comissao{background:var(--gold-100);color:#92400e}
+        .tag-sweet{background:var(--green-100);color:var(--green-700)}
+        /* Alert banner */
+        .alert-banner{display:flex;align-items:center;gap:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#9a3412}
+        .alert-banner .alert-icon{font-size:18px}
+        /* Empty/loading */
+        .empty{text-align:center;padding:48px 20px;color:var(--text-4)}
+        .empty .empty-icon{font-size:40px;margin-bottom:10px}
+        .spinner-wrap{text-align:center;padding:40px}
+        .spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--blue-500);border-radius:50%;animation:spin .7s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <img src="/static/logo-sierra-full.png" alt="Sierra" onerror="this.style.display='none'">
+            <span>Vértice</span>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="section">Principal</div>
+            <a href="/analytics"><span class="icon">📊</span> Painel Gerencial</a>
+            <a href="/dashboard"><span class="icon">🏠</span> Dashboard</a>
+            <a href="/cotacoes"><span class="icon">🧮</span> Nova Cotação</a>
+            <a href="/clientes"><span class="icon">👥</span> Clientes</a>
+            <a href="/apolices"><span class="icon">📋</span> Apólices</a>
+            <div class="section">Inteligência</div>
+            <a href="/arbitragem" class="active"><span class="icon">⚖️</span> Arbitragem</a>
+            <a href="/comissoes"><span class="icon">💰</span> Comissões</a>
+            <div class="section">Ferramentas</div>
+            <a href="/renovacoes"><span class="icon">🔄</span> Renovações</a>
+            <a href="/conversor"><span class="icon">📄</span> Conversor PDF</a>
+            <div class="section">Sistema</div>
+            <a href="/seguranca"><span class="icon">🔒</span> Segurança</a>
+            <div class="section" id="adminSection" style="display:none">Administração</div>
+            <a href="/gestor" id="gestorLink" style="display:none"><span class="icon">🧠</span> Gastón IA</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user"><strong id="userName">—</strong><br>Sierra Seguros</div>
+            <button class="btn-logout" onclick="logout()">Sair</button>
+        </div>
+    </aside>
+
+    <div class="main">
+        <div class="header">
+            <h2>⚖️ Arbitragem de Prêmio</h2>
+            <p>Compare seguradoras: menor prêmio pro cliente × maior comissão pro corretor</p>
+        </div>
+        <div class="content">
+            <div class="select-row">
+                <label>Cotação:</label>
+                <select id="cotacaoSelect" onchange="carregarArbitragem()">
+                    <option value="">— Selecione uma cotação —</option>
+                </select>
+            </div>
+
+            <div id="alertaBanner" class="alert-banner" style="display:none">
+                <span class="alert-icon">⚠️</span>
+                <span id="alertaTexto"></span>
+            </div>
+
+            <div id="cardsSection" style="display:none">
+                <div class="cards-row">
+                    <div class="card" id="cardDispersao">
+                        <div class="card-label">Dispersão de Prêmio</div>
+                        <div class="card-value" id="valDispersao">—</div>
+                        <div class="card-sub">Variação entre maior e menor</div>
+                    </div>
+                    <div class="card good">
+                        <div class="card-label">🏆 Economia Potencial</div>
+                        <div class="card-value" id="valEconomia">—</div>
+                        <div class="card-sub">Diferença do menor ao maior</div>
+                    </div>
+                    <div class="card" style="border-color:#fde68a;background:#fffbeb">
+                        <div class="card-label">💰 Comissão Extra</div>
+                        <div class="card-value" id="valComissaoExtra" style="color:#92400e">—</div>
+                        <div class="card-sub">Diferença entre opções</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-label">⭐ Sweet Spot</div>
+                        <div class="card-value" id="valSweetSpot" style="font-size:15px;color:var(--green-700)">—</div>
+                        <div class="card-sub">Melhor equilíbrio prêmio × comissão</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="loadingDiv" class="spinner-wrap" style="display:none"><div class="spinner"></div></div>
+
+            <div id="tableSection" style="display:none">
+                <div class="table-wrap">
+                    <div class="table-title">📊 Comparativo de Seguradoras</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Seguradora</th>
+                                <th>Prêmio</th>
+                                <th>Comissão %</th>
+                                <th>Comissão R$</th>
+                                <th>Franquia</th>
+                                <th>Tags</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="emptyDiv" class="empty" style="display:none">
+                <div class="empty-icon">🔍</div>
+                <p>Selecione uma cotação para ver a análise</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const token = localStorage.getItem('sierra_token');
+if (!token) location.href = '/';
+
+function logout() {
+    localStorage.removeItem('sierra_token');
+    location.href = '/';
+}
+
+function fmt(v) {
+    if (v == null || v === 0) return '—';
+    return 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function fmtPct(v) {
+    if (!v) return '—';
+    return v.toFixed(1) + '%';
+}
+
+async function init() {
+    // Load user info
+    try {
+        const r = await fetch('/api/auth/me', {headers:{'Authorization':'Bearer '+token}});
+        if (!r.ok) { logout(); return; }
+        const u = await r.json();
+        document.getElementById('userName').textContent = u.nome || u.email || '—';
+        if (u.is_admin) {
+            document.getElementById('adminSection').style.display = '';
+            document.getElementById('gestorLink').style.display = '';
+        }
+    } catch(e) {}
+
+    // Load cotações
+    try {
+        const r = await fetch('/api/arbitragem/cotacoes-recentes', {headers:{'Authorization':'Bearer '+token}});
+        if (!r.ok) throw new Error();
+        const data = await r.json();
+        const sel = document.getElementById('cotacaoSelect');
+        data.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.label;
+            sel.appendChild(opt);
+        });
+        if (data.length === 0) {
+            document.getElementById('emptyDiv').style.display = '';
+            document.getElementById('emptyDiv').querySelector('p').textContent = 'Nenhuma cotação com resultados encontrada';
+        } else {
+            document.getElementById('emptyDiv').style.display = '';
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+async function carregarArbitragem() {
+    const id = document.getElementById('cotacaoSelect').value;
+    document.getElementById('alertaBanner').style.display = 'none';
+    document.getElementById('cardsSection').style.display = 'none';
+    document.getElementById('tableSection').style.display = 'none';
+    document.getElementById('emptyDiv').style.display = 'none';
+
+    if (!id) {
+        document.getElementById('emptyDiv').style.display = '';
+        return;
+    }
+
+    document.getElementById('loadingDiv').style.display = '';
+    try {
+        const r = await fetch(`/api/arbitragem/${id}`, {headers:{'Authorization':'Bearer '+token}});
+        document.getElementById('loadingDiv').style.display = 'none';
+        if (!r.ok) {
+            const err = await r.json();
+            document.getElementById('emptyDiv').style.display = '';
+            document.getElementById('emptyDiv').querySelector('p').textContent = err.detail || 'Erro ao carregar dados';
+            return;
+        }
+        const d = await r.json();
+        renderArbitragem(d);
+    } catch(e) {
+        document.getElementById('loadingDiv').style.display = 'none';
+        document.getElementById('emptyDiv').style.display = '';
+        document.getElementById('emptyDiv').querySelector('p').textContent = 'Erro de conexão';
+    }
+}
+
+function renderArbitragem(d) {
+    const r = d.resumo;
+
+    // Alerta dispersão
+    if (d.alerta_dispersao) {
+        document.getElementById('alertaBanner').style.display = 'flex';
+        document.getElementById('alertaTexto').textContent =
+            `⚠️ Alta dispersão de prêmios (${d.dispersao_percentual}%)! Diferença de ${fmt(r.economia_potencial)} entre a mais barata e a mais cara. Vale negociar.`;
+    }
+
+    // Cards
+    const cardDisp = document.getElementById('cardDispersao');
+    cardDisp.className = 'card ' + (d.alerta_dispersao ? 'alert' : 'good');
+    document.getElementById('valDispersao').textContent = fmtPct(d.dispersao_percentual);
+    document.getElementById('valEconomia').textContent = fmt(r.economia_potencial);
+    document.getElementById('valComissaoExtra').textContent = fmt(r.comissao_extra_potencial);
+    document.getElementById('valSweetSpot').textContent = r.sweet_spot || '—';
+    document.getElementById('cardsSection').style.display = '';
+
+    // Table
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+    d.resultados.forEach((s, i) => {
+        const isSweetSpot = s.tags.includes('sweet_spot');
+        const tr = document.createElement('tr');
+        if (isSweetSpot) tr.className = 'sweet-spot';
+
+        const tags = [];
+        if (s.tags.includes('mais_barato')) tags.push('<span class="tag tag-barato">🏆 Mais barato</span>');
+        if (s.tags.includes('melhor_comissao')) tags.push('<span class="tag tag-comissao">💰 Melhor comissão</span>');
+        if (s.tags.includes('sweet_spot')) tags.push('<span class="tag tag-sweet">⭐ Sweet spot</span>');
+
+        tr.innerHTML = `
+            <td style="color:var(--text-4);font-size:12px">${i+1}</td>
+            <td><strong>${s.seguradora}</strong></td>
+            <td><strong>${fmt(s.premio)}</strong></td>
+            <td>${s.comissao_percentual ? s.comissao_percentual.toFixed(1)+'%' : '—'}</td>
+            <td>${fmt(s.comissao_rs)}</td>
+            <td>${s.franquia ? fmt(s.franquia) : '—'}</td>
+            <td>${tags.join('')||'<span style="color:var(--text-4);font-size:12px">—</span>'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById('tableSection').style.display = '';
+}
+
+init();
+</script>
+</body>
+</html>
