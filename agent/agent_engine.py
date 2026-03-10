@@ -38,13 +38,10 @@ logger = logging.getLogger(__name__)
 #  CONFIGURAÇÕES
 # ─────────────────────────────────────────────────────────────
 
-# Anthropic API key — carregada dos perfis do OpenClaw ou do ambiente
 def _get_anthropic_key() -> str:
-    # Tenta variável de ambiente primeiro
     key = os.environ.get("ANTHROPIC_API_KEY", "")
     if key:
         return key
-    # Tenta do arquivo de perfis do OpenClaw
     try:
         profiles_path = "/root/.openclaw/agents/main/agent/auth-profiles.json"
         with open(profiles_path) as f:
@@ -66,10 +63,7 @@ ANTHROPIC_KEY = _get_anthropic_key()
 MODEL = "claude-sonnet-4-20250514"
 DB_URL = "postgresql://sierra:SierraDB2026!!@localhost/sierra_db"
 
-# Confiança mínima para continuar sem handoff
 CONFIANCA_MINIMA = 0.95
-
-# Máximo de tokens do histórico antes de truncar
 MAX_HISTORICO_TOKENS = 4000
 
 # ─────────────────────────────────────────────────────────────
@@ -84,39 +78,66 @@ SYSTEM_PROMPT = """Você é a Sofia, atendente virtual da Sierra Seguros, corret
 - Empática: especialmente em situações difíceis (sinistros, urgências)
 - Usa emojis com moderação (1-2 por mensagem, nunca exagera)
 
-## Regras SUSEP (OBRIGATÓRIAS)
+## ✅ PODE FAZER (Permitido pela SUSEP)
+- Informar preços e coberturas das seguradoras disponíveis
+- Comparar opções entre seguradoras (mostrar ranking de preços)
+- Coletar dados do cliente (CPF, placa, CNH, CRLV)
+- Explicar franquias, condições e coberturas de forma geral
+- Mostrar estimativas de prêmio com as opções disponíveis
+- Orientar sobre documentação necessária
+
+## ❌ NÃO PODE FAZER (Proibido pela SUSEP)
+- Recomendar seguradora específica ("a melhor é X", "sugiro a Y")
+- Garantir cobertura de sinistro ("seu caso será coberto", "vai ser pago")
+- Fechar contrato ou emitir apólice diretamente
+- Prometer preço fixo antes da emissão ("vai custar exatamente R$X")
+- Dar conselho jurídico ou médico de qualquer natureza
+- Inventar ou estimar dados que não existem no sistema
+- Divulgar CPF, dados pessoais ou financeiros de terceiros
+
+## ⚠️ SEMPRE (Obrigatório)
+- Disclaimer automático ao apresentar valores: *"Os valores são estimativas. A apólice final pode variar conforme análise da seguradora."*
+- Se não souber a resposta, dizer: "Vou verificar com o Eduardo e retorno em breve!"
+- Ao coletar dados sensíveis: confirmar antes de prosseguir ("Confere essas informações?")
+- Usar linguagem simples, sem jargão técnico excessivo
+
+## 🤝 Handoff para o Corretor Eduardo
+Faça handoff (use a ferramenta notificar_corretor com tipo="handoff") OBRIGATORIAMENTE quando:
+- Confiança na intenção < 0.95
+- Cliente pede explicitamente falar com humano
+- Sinistro — acidente, furto, roubo, perda total
+- Reclamação ou insatisfação com qualquer serviço
+- Endosso (alteração de apólice vigente)
+- Cancelamento de apólice
+- Situação jurídica ou conflito com seguradora
+- Valor de prêmio acima de R$ 5.000/ano
+- Após concluir qualquer cotação completa
+- Qualquer dúvida que você não tenha certeza
+
+Mensagem padrão ao cliente no handoff: "Vou passar para o Eduardo, nosso especialista. Ele já vai receber todo o contexto da nossa conversa! 😊"
+
+## Regras SUSEP (RESUMO)
 - NUNCA recomende uma seguradora específica — apresente sempre como "opções" ou "alternativas"
-- Sempre use disclaimers sutis: "valores baseados na cotação atual, podem variar na emissão"
-- NUNCA faça promessas de valores exatos antes de calcular
-- Em caso de sinistro: oriente mas não interprete coberturas — passe pro Eduardo
-- NUNCA forneça CPF, dados sensíveis de terceiros via chat
+- Sempre use disclaimers: "valores baseados na cotação atual, podem variar na emissão"
+- NUNCA faça promessas de valores exatos antes do cálculo
+- Em caso de sinistro: oriente mas não interprete coberturas — passe pro Eduardo IMEDIATAMENTE
 
 ## Fluxo de Cotação
 1. Identifique o que o cliente precisa (use classificar_intencao)
 2. Colete dados necessários (CNH, CRLV, CEP) um a um, com confirmação
 3. Mostre o resumo dos dados antes de calcular: "Confere essas informações?"
-4. Calcule (use calcular_cotacao) e apresente as opções
+4. Calcule (use calcular_cotacao) e apresente as opções com disclaimer
 5. Quando escolher seguradora, gere o PDF (use gerar_pdf_sierra)
 6. Notifique o Eduardo com resumo completo (use notificar_corretor)
 
-## Handoff para o Corretor Eduardo
-Faça handoff (notificar_corretor com tipo="handoff") quando:
-- Confiança na intenção < 0.95
-- Cliente pede explicitamente falar com humano
-- Sinistro, reclamação, ou situação complexa
-- Valor de prêmio acima de R$ 5.000/ano
-- Após concluir qualquer cotação completa
-
-Mensagem de handoff ao cliente: "Vou passar pro Eduardo que ele confirma os detalhes! 😊"
-
 ## Cenários que você atende
 1. **cotacao_nova** — Coletar CNH + CRLV + CEP → calcular → apresentar opções
-2. **transferencia** — Transferência de propriedade, novo seguro no nome do comprador
-3. **renovacao** — Renovar apólice: buscar cliente, verificar vencimento, recalcular
+2. **transferencia** — Transferência de propriedade → handoff imediato pro Eduardo
+3. **renovacao** — Renovar apólice: buscar cliente → consultar_renovacoes_pendentes → recalcular
 4. **endosso** — Alterar apólice vigente → handoff imediato pro Eduardo
-5. **sinistro** — Orientar, coletar informações básicas → handoff imediato pro Eduardo
+5. **sinistro** — Orientar, coletar informações básicas → handoff IMEDIATO pro Eduardo
 6. **documentos** — Enviar apólice, boleto, documentos digitais
-7. **duvidas** — Responder dúvidas gerais sobre seguros
+7. **duvidas** — Responder dúvidas gerais sobre seguros (sem garantias)
 8. **assistencia** — Guincho, socorro → informar número 0800 e fazer handoff
 9. **status** — Verificar status de cotação ou proposta
 10. **indicacao** — Agradecer e pedir indicar amigos/familiares
@@ -145,7 +166,6 @@ def criar_sessao(chat_id: int, intent: str = None) -> int:
     conn = _get_db_conn()
     cur = conn.cursor()
     try:
-        # Verifica se há sessão ativa (menos de 24h)
         cur.execute("""
             SELECT id FROM agent_sessions
             WHERE chat_id = %s 
@@ -156,7 +176,6 @@ def criar_sessao(chat_id: int, intent: str = None) -> int:
         row = cur.fetchone()
         if row:
             session_id = row[0]
-            # Atualiza timestamp e intent se fornecido
             if intent:
                 cur.execute("""
                     UPDATE agent_sessions 
@@ -171,7 +190,6 @@ def criar_sessao(chat_id: int, intent: str = None) -> int:
             conn.commit()
             return session_id
         else:
-            # Nova sessão
             cur.execute("""
                 INSERT INTO agent_sessions (chat_id, estado, contexto, intent)
                 VALUES (%s, 'ativo', '{}'::jsonb, %s)
@@ -212,72 +230,202 @@ def salvar_mensagem(session_id: int, role: str, content: str,
 def carregar_historico(session_id: int, limit: int = 20) -> list:
     """
     Carrega as últimas N mensagens do histórico da sessão.
-    Retorna lista no formato esperado pelo Claude.
+    Retorna lista no formato 100% compatível com a API Anthropic messages.
+
+    Algoritmo robusto:
+    - Carrega mensagens em ordem cronológica
+    - Agrupa tool_use (assistant) + tool_result (user) como pares válidos
+    - Se tool_result não tem tool_use correspondente → IGNORA
+    - Se tool_use não tem tool_result correspondente → IGNORA
+    - Garante alternância correta: user → assistant → user → assistant
+    - Se primeira mensagem não é user → prefixar com mensagem user vazia
+    - Mescla mensagens consecutivas do mesmo role (evita erro 400)
+    """
+    conn = _get_db_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        # Busca as últimas `limit` mensagens, em ordem cronológica
+        cur.execute("""
+            SELECT id, role, content, tool_calls
+            FROM agent_messages
+            WHERE session_id = %s
+            ORDER BY created_at ASC, id ASC
+            LIMIT %s
+        """, (session_id, limit))
+        rows = cur.fetchall()
+
+        if not rows:
+            return []
+
+        # ── PASSO 1: mapear tool_use_ids e tool_result_ids ──
+        # tool_use salvo no DB: role='tool_use', tool_calls={"id": "tu_xxx", "name": "...", "input": {...}}
+        # tool_result salvo no DB: role='tool_result', tool_calls={"tool_use_id": "tu_xxx"}
+        tool_use_map: dict = {}     # tool_id → row dict
+        tool_result_map: dict = {}  # tool_use_id → row dict
+
+        for r in rows:
+            tc = r["tool_calls"]
+            if isinstance(tc, str):
+                try:
+                    tc = json.loads(tc)
+                except Exception:
+                    tc = None
+
+            if r["role"] == "tool_use" and tc:
+                tool_id = tc.get("id", "")
+                if tool_id:
+                    tool_use_map[tool_id] = (r, tc)
+
+            elif r["role"] == "tool_result" and tc:
+                tool_use_id = tc.get("tool_use_id", "")
+                if tool_use_id:
+                    tool_result_map[tool_use_id] = (r, tc)
+
+        # Pares válidos = IDs que aparecem nos DOIS lados
+        valid_pair_ids = set(tool_use_map.keys()) & set(tool_result_map.keys())
+
+        if len(tool_result_map) > len(valid_pair_ids):
+            orphans = set(tool_result_map.keys()) - valid_pair_ids
+            logger.warning(
+                f"[Sofia] Ignorando {len(orphans)} tool_result(s) órfão(s) "
+                f"(session={session_id}): {orphans}"
+            )
+        if len(tool_use_map) > len(valid_pair_ids):
+            unpaired = set(tool_use_map.keys()) - valid_pair_ids
+            logger.warning(
+                f"[Sofia] Ignorando {len(unpaired)} tool_use(s) sem tool_result "
+                f"(session={session_id}): {unpaired}"
+            )
+
+        # ── PASSO 2: construir a lista de mensagens filtrada ──
+        mensagens: list = []
+
+        for r in rows:
+            role = r["role"]
+            content = r["content"] or ""
+            tc = r["tool_calls"]
+            if isinstance(tc, str):
+                try:
+                    tc = json.loads(tc)
+                except Exception:
+                    tc = None
+
+            if role == "tool_use":
+                if tc and tc.get("id", "") in valid_pair_ids:
+                    mensagens.append({
+                        "role": "assistant",
+                        "content": [{
+                            "type": "tool_use",
+                            "id": tc["id"],
+                            "name": tc.get("name", ""),
+                            "input": tc.get("input", {})
+                        }]
+                    })
+                # else: ignora (sem par ou sem tc)
+
+            elif role == "tool_result":
+                if tc and tc.get("tool_use_id", "") in valid_pair_ids:
+                    mensagens.append({
+                        "role": "user",
+                        "content": [{
+                            "type": "tool_result",
+                            "tool_use_id": tc["tool_use_id"],
+                            "content": content
+                        }]
+                    })
+                # else: ignora órfão
+
+            elif role in ("user", "assistant"):
+                if content.strip():  # ignora mensagens vazias
+                    mensagens.append({"role": role, "content": content})
+                # else: ignora
+
+            # Qualquer outro role desconhecido → ignora silenciosamente
+
+        # ── PASSO 3: garantir alternância user ↔ assistant ──
+        # Mescla mensagens consecutivas do mesmo role
+        merged: list = []
+        for m in mensagens:
+            if merged and merged[-1]["role"] == m["role"]:
+                # Mescla com a última mensagem
+                prev = merged[-1]
+                pc = prev["content"]
+                mc = m["content"]
+
+                if isinstance(pc, str) and isinstance(mc, str):
+                    prev["content"] = pc + "\n" + mc
+                elif isinstance(pc, list) and isinstance(mc, list):
+                    prev["content"] = pc + mc
+                elif isinstance(pc, str) and isinstance(mc, list):
+                    prev["content"] = [{"type": "text", "text": pc}] + mc
+                elif isinstance(pc, list) and isinstance(mc, str):
+                    prev["content"] = pc + [{"type": "text", "text": mc}]
+            else:
+                merged.append(dict(m))
+
+        # ── PASSO 4: primeira mensagem deve ser "user" ──
+        if merged and merged[0]["role"] != "user":
+            logger.warning(
+                f"[Sofia] Histórico não começa com user — prefixando "
+                f"mensagem vazia (session={session_id})"
+            )
+            merged.insert(0, {"role": "user", "content": "..."})
+
+        # ── PASSO 5: validação final — garante alternância estrita ──
+        validado: list = []
+        for m in merged:
+            if validado and validado[-1]["role"] == m["role"]:
+                # Isso não deveria acontecer após o merge, mas como failsafe:
+                logger.error(
+                    f"[Sofia] Alternância inválida detectada após merge "
+                    f"(role={m['role']}) — descartando duplicata"
+                )
+                continue
+            validado.append(m)
+
+        logger.debug(
+            f"[Sofia] Histórico carregado: {len(rows)} rows → {len(validado)} msgs "
+            f"(session={session_id})"
+        )
+        return validado
+
+    finally:
+        cur.close()
+        conn.close()
+
+
+def carregar_historico_texto(session_id: int, limit: int = 10) -> str:
+    """
+    Retorna um resumo textual do histórico para handoffs.
+    Formato legível por humanos.
     """
     conn = _get_db_conn()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     try:
         cur.execute("""
-            SELECT role, content, tool_calls
+            SELECT role, content, created_at
             FROM agent_messages
-            WHERE session_id = %s
+            WHERE session_id = %s AND role IN ('user', 'assistant')
             ORDER BY created_at DESC
             LIMIT %s
         """, (session_id, limit))
-        rows = cur.fetchall()
-        # Retorna em ordem cronológica (do mais antigo pro mais recente)
-        rows = list(reversed(rows))
+        rows = list(reversed(cur.fetchall()))
 
-        mensagens = []
+        if not rows:
+            return "(sem histórico disponível)"
+
+        linhas = []
         for r in rows:
             role = r["role"]
-            content = r["content"]
-            tool_calls = r["tool_calls"]
-
-            if role == "tool_result" and tool_calls:
-                # Mensagem de resultado de ferramenta
-                tc = json.loads(tool_calls) if isinstance(tool_calls, str) else tool_calls
-                mensagens.append({
-                    "role": "user",
-                    "content": [{
-                        "type": "tool_result",
-                        "tool_use_id": tc.get("tool_use_id", ""),
-                        "content": content
-                    }]
-                })
-            elif role == "tool_use" and tool_calls:
-                # Mensagem de chamada de ferramenta (assistant)
-                tc = json.loads(tool_calls) if isinstance(tool_calls, str) else tool_calls
-                mensagens.append({
-                    "role": "assistant",
-                    "content": [{
-                        "type": "tool_use",
-                        "id": tc.get("id", ""),
-                        "name": tc.get("name", ""),
-                        "input": tc.get("input", {})
-                    }]
-                })
+            content = (r["content"] or "").strip()
+            if not content:
+                continue
+            if role == "user":
+                linhas.append(f"👤 Cliente: {content[:200]}")
             else:
-                mensagens.append({"role": role, "content": content})
+                linhas.append(f"🤖 Sofia: {content[:200]}")
 
-        # Validação: remove tool_result órfãos (sem tool_use correspondente)
-        tool_use_ids = set()
-        for m in mensagens:
-            if m.get("role") == "assistant" and isinstance(m.get("content"), list):
-                for block in m["content"]:
-                    if isinstance(block, dict) and block.get("type") == "tool_use":
-                        tool_use_ids.add(block.get("id", ""))
-        
-        validated = []
-        for m in mensagens:
-            if m.get("role") == "user" and isinstance(m.get("content"), list):
-                blocks = m["content"]
-                if any(b.get("type") == "tool_result" and b.get("tool_use_id") not in tool_use_ids for b in blocks if isinstance(b, dict)):
-                    logger.warning(f"[Sofia] Removendo tool_result órfão do histórico (session={session_id})")
-                    continue
-            validated.append(m)
-        
-        return validated
+        return "\n".join(linhas) if linhas else "(sem histórico)"
     finally:
         cur.close()
         conn.close()
@@ -336,7 +484,7 @@ def encerrar_sessao(chat_id: int):
 class SofiaAgent:
     """
     Motor conversacional da Sofia.
-    
+
     Uso:
         agent = SofiaAgent(chat_id=123456789, bot=telegram_bot)
         resposta = await agent.processar_mensagem("quero cotar um seguro")
@@ -344,15 +492,13 @@ class SofiaAgent:
 
     def __init__(self, chat_id: int, bot=None):
         self.chat_id = chat_id
-        self.bot = bot  # objeto bot do python-telegram-bot
-        self.cliente_nome: str = None  # Nome do cliente (preenchido ao longo da conversa)
+        self.bot = bot
+        self.cliente_nome: str = None
 
-        # Inicializa cliente Anthropic
         if not ANTHROPIC_KEY:
             raise ValueError("ANTHROPIC_API_KEY não configurada")
         self.client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
 
-        # Sessão persistente no banco
         self.session_id = criar_sessao(chat_id)
         self.contexto = carregar_contexto(self.session_id)
 
@@ -366,41 +512,24 @@ class SofiaAgent:
     ) -> str:
         """
         Ponto de entrada principal. Processa mensagem do usuário e retorna resposta.
-        
-        Args:
-            mensagem_usuario: Texto enviado pelo cliente
-            foto_path: Caminho de imagem (se cliente enviou foto)
-            on_progress: Callback opcional para atualizações de progresso (async)
-        
-        Returns:
-            Texto da resposta da Sofia
         """
-        # Carrega histórico recente (últimas 20 mensagens)
         historico = carregar_historico(self.session_id, limit=20)
 
-        # Monta a mensagem atual
         if foto_path:
-            # Se é uma foto, inclui contexto
             conteudo_usuario = (
                 f"{mensagem_usuario}\n"
                 f"[Arquivo recebido: {os.path.basename(foto_path)}]"
             ) if mensagem_usuario else f"[Foto enviada: {os.path.basename(foto_path)}]"
-            # Inclui o path no contexto para uso pelas ferramentas
             self.contexto["ultimo_foto_path"] = foto_path
             atualizar_contexto(self.session_id, self.contexto)
         else:
             conteudo_usuario = mensagem_usuario
 
-        # Salva mensagem do usuário no histórico
         salvar_mensagem(self.session_id, "user", conteudo_usuario)
-
-        # Adiciona à lista de mensagens pro Claude
         historico.append({"role": "user", "content": conteudo_usuario})
 
-        # Loop agentico: envia pro Claude, processa tool calls até ter resposta final
         resposta_final = await self._loop_agente(historico, on_progress)
 
-        # Salva resposta da Sofia
         salvar_mensagem(self.session_id, "assistant", resposta_final)
 
         return resposta_final
@@ -411,11 +540,7 @@ class SofiaAgent:
         on_progress: Callable = None
     ) -> str:
         """
-        Loop agentico principal:
-        1. Envia mensagens pro Claude
-        2. Se retorna tool_use: executa a ferramenta e continua
-        3. Se retorna text: retorna como resposta final
-        
+        Loop agentico principal.
         Max 5 iterações para evitar loops infinitos.
         """
         max_iteracoes = 5
@@ -426,7 +551,6 @@ class SofiaAgent:
             logger.info(f"[Sofia] Loop #{iteracao} | {len(mensagens)} mensagens")
 
             try:
-                # Chama o Claude
                 response = self.client.messages.create(
                     model=MODEL,
                     max_tokens=2048,
@@ -441,26 +565,29 @@ class SofiaAgent:
                     "Vou chamar o Eduardo pra te ajudar! Pode aguardar um momento?"
                 )
 
-            # Analisa o motivo de parada
             stop_reason = response.stop_reason
 
             if stop_reason == "end_turn":
-                # Resposta final em texto
                 texto = self._extrair_texto(response)
                 return texto
 
             elif stop_reason == "tool_use":
-                # O Claude quer usar uma ferramenta
                 tool_uses = [b for b in response.content if b.type == "tool_use"]
-                texto_junto = self._extrair_texto(response)
 
-                # Adiciona a resposta do assistant (com tool_use) no histórico
+                # Adiciona resposta do assistant (com tool_use) no histórico em memória
                 mensagens.append({
                     "role": "assistant",
                     "content": response.content
                 })
 
-                # Processa cada ferramenta e monta os resultados
+                # Salva tool_use blocks no DB (para parear com tool_results no futuro)
+                for tu in tool_uses:
+                    salvar_mensagem(
+                        self.session_id, "tool_use",
+                        f"[tool_use: {tu.name}]",
+                        tool_calls={"id": tu.id, "name": tu.name, "input": dict(tu.input)}
+                    )
+
                 tool_results = []
                 for tool_use in tool_uses:
                     nome = tool_use.name
@@ -469,16 +596,17 @@ class SofiaAgent:
 
                     logger.info(f"[Sofia] Tool call: {nome} | id={tool_id}")
 
-                    # Progresso pro usuário (se tiver callback)
                     if on_progress:
                         msgs_progresso = {
                             "calcular_cotacao": "⏳ Calculando cotação no Agilizador...",
                             "gerar_pdf_sierra": "⏳ Gerando PDF da cotação...",
                             "processar_cnh": "🔍 Lendo CNH...",
-                            "processar_crlv": "🔍 Lendo CRVL...",
+                            "processar_crlv": "🔍 Lendo CRLV...",
                             "buscar_cep": "📍 Buscando CEP...",
                             "buscar_cliente": "🔍 Buscando cliente...",
                             "consultar_apolices": "📋 Buscando apólices...",
+                            "consultar_renovacoes_pendentes": "🔄 Verificando renovações...",
+                            "iniciar_renovacao": "🚀 Iniciando renovação...",
                             "notificar_corretor": "📲 Notificando corretor...",
                         }
                         msg_prog = msgs_progresso.get(nome)
@@ -488,10 +616,8 @@ class SofiaAgent:
                             except Exception:
                                 pass
 
-                    # Enriquece parâmetros com contexto da sessão quando necessário
                     params = self._enriquecer_params(nome, params)
 
-                    # Executa a ferramenta
                     resultado = await executar_ferramenta(
                         nome=nome,
                         parametros=params,
@@ -500,32 +626,29 @@ class SofiaAgent:
                         cliente_nome=self.cliente_nome
                     )
 
-                    # Pós-processamento: atualiza contexto com dados coletados
                     self._atualizar_contexto_pos_tool(nome, params, resultado)
 
-                    # Persiste no histórico
+                    resultado_str = json.dumps(resultado, ensure_ascii=False, default=str)
+
+                    # Salva tool_result no DB (pareado com o tool_use salvo acima)
                     salvar_mensagem(
                         self.session_id, "tool_result",
-                        json.dumps(resultado, ensure_ascii=False, default=str),
+                        resultado_str,
                         tool_calls={"tool_use_id": tool_id}
                     )
 
                     tool_results.append({
                         "type": "tool_result",
                         "tool_use_id": tool_id,
-                        "content": json.dumps(resultado, ensure_ascii=False, default=str)
+                        "content": resultado_str
                     })
 
-                # Adiciona resultados das ferramentas no histórico
                 mensagens.append({
                     "role": "user",
                     "content": tool_results
                 })
 
-                # Continua o loop para o Claude processar os resultados
-
             else:
-                # Outro motivo de parada (max_tokens, etc.)
                 logger.warning(f"[Sofia] Stop reason inesperado: {stop_reason}")
                 texto = self._extrair_texto(response)
                 return texto if texto else (
@@ -533,7 +656,6 @@ class SofiaAgent:
                     "Pode repetir sua pergunta?"
                 )
 
-        # Se chegou aqui, ultrapassou o limite de iterações
         logger.warning(f"[Sofia] Máximo de iterações atingido para chat_id={self.chat_id}")
         return (
             "Esse atendimento ficou um pouco complexo! 😅 "
@@ -551,13 +673,12 @@ class SofiaAgent:
         Injeta dados do contexto da sessão nos parâmetros da ferramenta,
         quando o Claude não os forneceu explicitamente.
         """
-        params = dict(params)  # cópia
+        params = dict(params)
 
         if nome_ferramenta == "calcular_cotacao":
             if "chat_id" not in params:
                 params["chat_id"] = self.chat_id
             if "session_data" not in params:
-                # Monta session_data a partir do contexto
                 params["session_data"] = {
                     "cnh": self.contexto.get("cnh"),
                     "crvl": self.contexto.get("crvl"),
@@ -574,22 +695,37 @@ class SofiaAgent:
             if "foto_path" not in params or not params.get("foto_path"):
                 params["foto_path"] = self.contexto.get("ultimo_foto_path", "")
 
+        elif nome_ferramenta == "notificar_corretor":
+            # Injeta contexto do cliente e histórico resumido para handoffs ricos
+            if "chat_id" not in params:
+                params["chat_id"] = self.chat_id
+            if "cliente_nome" not in params and self.cliente_nome:
+                params["cliente_nome"] = self.cliente_nome
+            # Inclui resumo da conversa para handoffs
+            if params.get("tipo") == "handoff" and "historico_resumo" not in params:
+                params["historico_resumo"] = carregar_historico_texto(
+                    self.session_id, limit=10
+                )
+
+        elif nome_ferramenta in ("consultar_renovacoes_pendentes", "iniciar_renovacao"):
+            # Injeta cliente_id do contexto se disponível
+            if "cliente_id" not in params:
+                cliente_db = self.contexto.get("cliente_db", {})
+                if cliente_db.get("id"):
+                    params["cliente_id"] = cliente_db["id"]
+
         return params
 
     def _atualizar_contexto_pos_tool(self, nome: str, params: dict, resultado: dict):
-        """
-        Atualiza o contexto da sessão com dados coletados pelas ferramentas.
-        """
+        """Atualiza o contexto da sessão com dados coletados pelas ferramentas."""
         atualizou = False
 
         if nome == "processar_cnh" and resultado.get("sucesso"):
             dados = resultado.get("dados", {})
             if self.contexto.get("cnh"):
-                # Segunda CNH = condutor
                 self.contexto["cnh_condutor"] = dados
             else:
                 self.contexto["cnh"] = dados
-                # Extrai nome do cliente
                 nome_cliente = dados.get("nome", "")
                 if nome_cliente and nome_cliente != "N/D":
                     self.cliente_nome = nome_cliente
@@ -642,14 +778,10 @@ _agentes_ativos: dict[int, SofiaAgent] = {}
 
 
 def get_or_create_agente(chat_id: int, bot=None) -> SofiaAgent:
-    """
-    Retorna agente existente ou cria novo para o chat_id.
-    Mantém instância em memória durante a sessão.
-    """
+    """Retorna agente existente ou cria novo para o chat_id."""
     if chat_id not in _agentes_ativos:
         _agentes_ativos[chat_id] = SofiaAgent(chat_id=chat_id, bot=bot)
     else:
-        # Atualiza referência do bot se necessário
         if bot and not _agentes_ativos[chat_id].bot:
             _agentes_ativos[chat_id].bot = bot
     return _agentes_ativos[chat_id]

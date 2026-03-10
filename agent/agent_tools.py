@@ -2,12 +2,13 @@
 agent_tools.py — Ferramentas disponíveis para a Sofia (agente IA da Sierra Seguros)
 
 Cada função aqui é um wrapper das capacidades já existentes no sistema:
-  - OCR de CNH/CRVL (via ocr_docs.py)
+  - OCR de CNH/CRLV (via ocr_docs.py)
   - Cálculo de cotação (via agilizador.py)
   - Download de PDF cotação (via agilizador.py)
   - Busca de CEP (via ViaCEP)
   - Consulta de clientes/apólices (via PostgreSQL)
   - Notificação pro corretor (via Telegram)
+  - Renovações pendentes e iniciar renovação
 
 Todas as funções são assíncronas pra não bloquear o bot.
 """
@@ -20,14 +21,12 @@ import httpx
 import json
 from typing import Optional
 
-# Adiciona o diretório pai (/root/sierra/) ao path pra importar módulos existentes
 _SIERRA_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _SIERRA_ROOT not in sys.path:
     sys.path.insert(0, _SIERRA_ROOT)
 
 logger = logging.getLogger(__name__)
 
-# Chat_id do Eduardo (corretor responsável) — recebe handoffs e notificações
 CORRETOR_CHAT_ID = 2104676074
 
 # ─────────────────────────────────────────────────────────────
@@ -48,16 +47,16 @@ TOOLS_DEFINITIONS = [
                 "intencao": {
                     "type": "string",
                     "enum": [
-                        "cotacao_nova",      # quer cotar um seguro novo
-                        "transferencia",     # transferência de seguro/veículo
-                        "renovacao",         # renovar apólice existente
-                        "endosso",           # alterar apólice vigente
-                        "sinistro",          # acidente, colisão, furto
-                        "documentos",        # pedir documentos, apólice, boleto
-                        "duvidas",           # perguntas gerais sobre seguro
-                        "assistencia",       # guincho, socorro, carro reserva
-                        "status",            # verificar status de cotação/proposta
-                        "indicacao",         # indicar a Sierra pra outra pessoa
+                        "cotacao_nova",
+                        "transferencia",
+                        "renovacao",
+                        "endosso",
+                        "sinistro",
+                        "documentos",
+                        "duvidas",
+                        "assistencia",
+                        "status",
+                        "indicacao",
                     ],
                     "description": "Cenário identificado na mensagem do cliente"
                 },
@@ -76,8 +75,8 @@ TOOLS_DEFINITIONS = [
     {
         "name": "processar_cnh",
         "description": (
-            "Processa uma imagem de CNH (Carteira Nacional de Habilitação) usando OCR com IA. "
-            "Extrai: nome, CPF, data de nascimento, categoria, validade, etc. "
+            "Processa uma imagem de CNH usando OCR com IA. "
+            "Extrai: nome, CPF, data de nascimento, categoria, validade. "
             "Use quando o cliente enviar foto da CNH."
         ),
         "input_schema": {
@@ -94,8 +93,8 @@ TOOLS_DEFINITIONS = [
     {
         "name": "processar_crlv",
         "description": (
-            "Processa uma imagem do CRLV (Certificado de Registro e Licenciamento de Veículo) usando OCR com IA. "
-            "Extrai: placa, marca/modelo, ano, chassi, proprietário, etc. "
+            "Processa uma imagem do CRLV usando OCR com IA. "
+            "Extrai: placa, marca/modelo, ano, chassi, proprietário. "
             "Use quando o cliente enviar foto do CRLV."
         ),
         "input_schema": {
@@ -113,8 +112,7 @@ TOOLS_DEFINITIONS = [
         "name": "buscar_cep",
         "description": (
             "Busca informações de endereço a partir de um CEP brasileiro via ViaCEP. "
-            "Retorna: logradouro, bairro, cidade, UF. "
-            "Use para validar e completar o endereço de pernoite do veículo."
+            "Retorna: logradouro, bairro, cidade, UF."
         ),
         "input_schema": {
             "type": "object",
@@ -131,7 +129,6 @@ TOOLS_DEFINITIONS = [
         "name": "calcular_cotacao",
         "description": (
             "Calcula cotação de seguro auto no Agilizador usando dados da CNH, CRLV e CEP. "
-            "Preenche o formulário automaticamente e retorna os resultados das seguradoras. "
             "IMPORTANTE: só use após confirmar todos os dados com o cliente."
         ),
         "input_schema": {
@@ -143,7 +140,7 @@ TOOLS_DEFINITIONS = [
                 },
                 "chat_id": {
                     "type": "integer",
-                    "description": "ID do chat do cliente (para manter sessão do browser)"
+                    "description": "ID do chat do cliente"
                 }
             },
             "required": ["session_data", "chat_id"]
@@ -153,8 +150,7 @@ TOOLS_DEFINITIONS = [
         "name": "gerar_pdf_sierra",
         "description": (
             "Baixa e gera o PDF de cotação de uma seguradora específica no layout Sierra. "
-            "Use após calcular_cotacao, quando o cliente escolher uma seguradora. "
-            "Retorna o caminho do PDF gerado."
+            "Use após calcular_cotacao, quando o cliente escolher uma seguradora."
         ),
         "input_schema": {
             "type": "object",
@@ -210,11 +206,56 @@ TOOLS_DEFINITIONS = [
         }
     },
     {
+        "name": "consultar_renovacoes_pendentes",
+        "description": (
+            "Busca apólices do cliente com vencimento nos próximos 30, 60 ou 90 dias. "
+            "Use no fluxo de renovação para identificar quais apólices precisam ser renovadas. "
+            "Retorna lista com detalhes das apólices próximas do vencimento."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "cliente_id": {
+                    "type": "integer",
+                    "description": "ID do cliente no banco de dados"
+                },
+                "dias": {
+                    "type": "integer",
+                    "enum": [30, 60, 90],
+                    "description": "Janela de dias para verificar vencimentos (padrão: 60)"
+                }
+            },
+            "required": ["cliente_id"]
+        }
+    },
+    {
+        "name": "iniciar_renovacao",
+        "description": (
+            "Marca uma apólice para renovação e inicia o processo de cotação com os dados existentes. "
+            "Use após consultar_renovacoes_pendentes quando o cliente confirmar que quer renovar. "
+            "Retorna confirmação e dados para a nova cotação."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "apolice_id": {
+                    "type": "integer",
+                    "description": "ID da apólice a ser renovada"
+                },
+                "cliente_id": {
+                    "type": "integer",
+                    "description": "ID do cliente"
+                }
+            },
+            "required": ["apolice_id", "cliente_id"]
+        }
+    },
+    {
         "name": "notificar_corretor",
         "description": (
             "Envia uma notificação para o corretor Eduardo via Telegram. "
             "Use quando: confiança < 0.95, cliente pede falar com humano, "
-            "situação complexa (sinistro, endosso, reclamação), ou ao concluir cotação."
+            "situação complexa (sinistro, endosso, reclamação, cancelamento), ou ao concluir cotação."
         ),
         "input_schema": {
             "type": "object",
@@ -231,6 +272,10 @@ TOOLS_DEFINITIONS = [
                     "type": "string",
                     "enum": ["handoff", "cotacao_completa", "sinistro", "info"],
                     "description": "Tipo da notificação"
+                },
+                "historico_resumo": {
+                    "type": "string",
+                    "description": "Resumo do histórico da conversa (preenchido automaticamente em handoffs)"
                 }
             },
             "required": ["resumo", "tipo"]
@@ -244,17 +289,12 @@ TOOLS_DEFINITIONS = [
 # ─────────────────────────────────────────────────────────────
 
 async def processar_cnh(foto_path: str) -> dict:
-    """
-    OCR de CNH usando o módulo ocr_docs existente.
-    Retorna dados estruturados da CNH.
-    """
     try:
         from ocr_docs import extract_document_data
         data = extract_document_data(foto_path)
         if not data:
             return {"erro": "Não foi possível ler a CNH. Peça uma foto mais nítida."}
         if data.get("tipo", "").upper() != "CNH":
-            # Tenta com prompt específico de CNH
             return {"erro": f"Documento identificado como '{data.get('tipo', 'Desconhecido')}', não como CNH."}
         return {"sucesso": True, "dados": data}
     except Exception as e:
@@ -263,10 +303,6 @@ async def processar_cnh(foto_path: str) -> dict:
 
 
 async def processar_crlv(foto_path: str) -> dict:
-    """
-    OCR de CRLV usando o módulo ocr_docs existente.
-    Retorna dados estruturados do CRLV.
-    """
     try:
         from ocr_docs import extract_document_data
         data = extract_document_data(foto_path)
@@ -282,10 +318,6 @@ async def processar_crlv(foto_path: str) -> dict:
 
 
 async def buscar_cep(cep: str) -> dict:
-    """
-    Busca endereço via ViaCEP.
-    Retorna dados do endereço ou erro.
-    """
     import re
     cep_limpo = re.sub(r"\D", "", cep)
     if len(cep_limpo) != 8:
@@ -311,10 +343,6 @@ async def buscar_cep(cep: str) -> dict:
 
 
 async def calcular_cotacao_tool(session_data: dict, chat_id: int, on_progress=None) -> dict:
-    """
-    Calcula cotação no Agilizador.
-    Wrapper da função calcular_cotacao do agilizador.py.
-    """
     try:
         from agilizador import calcular_cotacao
         resultado = await calcular_cotacao(
@@ -332,10 +360,6 @@ async def gerar_pdf_sierra_tool(seguradora: str, chat_id: int,
                                  premio_esperado: float = None,
                                  resultado_tela: dict = None,
                                  on_progress=None) -> dict:
-    """
-    Gera PDF Sierra de uma seguradora.
-    Wrapper da função baixar_pdf_cotacao do agilizador.py.
-    """
     try:
         from agilizador import baixar_pdf_cotacao
         resultado = await baixar_pdf_cotacao(
@@ -352,15 +376,11 @@ async def gerar_pdf_sierra_tool(seguradora: str, chat_id: int,
 
 
 async def buscar_cliente(busca: str) -> dict:
-    """
-    Busca cliente por CPF ou nome no PostgreSQL.
-    """
     import re
     try:
         import asyncpg
         conn = await asyncpg.connect("postgresql://sierra:SierraDB2026!!@localhost/sierra_db")
         try:
-            # Verifica se parece um CPF (só números ou com pontuação)
             cpf_limpo = re.sub(r"\D", "", busca)
             if len(cpf_limpo) == 11:
                 rows = await conn.fetch(
@@ -369,7 +389,6 @@ async def buscar_cliente(busca: str) -> dict:
                     f"%{cpf_limpo}%"
                 )
             else:
-                # Busca por nome (case insensitive)
                 rows = await conn.fetch(
                     "SELECT id, nome, cpf_cnpj, telefone, email, cidade, uf "
                     "FROM clientes WHERE unaccent(lower(nome)) LIKE unaccent(lower($1)) LIMIT 5",
@@ -382,7 +401,6 @@ async def buscar_cliente(busca: str) -> dict:
         finally:
             await conn.close()
     except ImportError:
-        # Fallback com psycopg2
         return await _buscar_cliente_psycopg2(busca)
     except Exception as e:
         logger.error(f"Erro ao buscar cliente: {e}", exc_info=True)
@@ -390,7 +408,6 @@ async def buscar_cliente(busca: str) -> dict:
 
 
 async def _buscar_cliente_psycopg2(busca: str) -> dict:
-    """Fallback com psycopg2 síncrono."""
     import re
     import psycopg2
     import psycopg2.extras
@@ -421,9 +438,6 @@ async def _buscar_cliente_psycopg2(busca: str) -> dict:
 
 
 async def consultar_apolices(cliente_id: int) -> dict:
-    """
-    Consulta apólices vigentes de um cliente.
-    """
     try:
         import psycopg2
         import psycopg2.extras
@@ -450,11 +464,9 @@ async def consultar_apolices(cliente_id: int) -> dict:
         apolices = []
         for r in rows:
             ap = dict(r)
-            # Formata datas
             for campo in ["vigencia_inicio", "vigencia_fim"]:
                 if ap.get(campo):
                     ap[campo] = ap[campo].strftime("%d/%m/%Y")
-            # Formata prêmio
             if ap.get("premio"):
                 ap["premio_fmt"] = f"R$ {float(ap['premio']):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             apolices.append(ap)
@@ -465,11 +477,165 @@ async def consultar_apolices(cliente_id: int) -> dict:
         return {"encontrado": False, "erro": str(e)}
 
 
+async def consultar_renovacoes_pendentes(cliente_id: int, dias: int = 60) -> dict:
+    """
+    Busca apólices do cliente com vencimento nos próximos N dias (30, 60 ou 90).
+    Retorna lista ordenada pelo vencimento mais próximo.
+    """
+    if dias not in (30, 60, 90):
+        dias = 60
+
+    try:
+        import psycopg2
+        import psycopg2.extras
+        conn = psycopg2.connect("postgresql://sierra:SierraDB2026!!@localhost/sierra_db")
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            SELECT
+                a.id,
+                a.seguradora,
+                a.numero_apolice,
+                a.vigencia_inicio,
+                a.vigencia_fim,
+                a.premio,
+                a.status,
+                a.renovacao_status,
+                a.ramo,
+                v.marca_modelo,
+                v.placa,
+                v.ano_fabricacao,
+                (a.vigencia_fim - CURRENT_DATE) AS dias_para_vencer
+            FROM apolices a
+            LEFT JOIN veiculos v ON a.veiculo_id = v.id
+            WHERE a.cliente_id = %s
+              AND a.status IN ('vigente', 'ativo')
+              AND a.vigencia_fim BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '%s days')
+            ORDER BY a.vigencia_fim ASC
+            LIMIT 10
+        """, (cliente_id, dias))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        if not rows:
+            return {
+                "encontrado": False,
+                "msg": f"Nenhuma apólice com vencimento nos próximos {dias} dias.",
+                "cliente_id": cliente_id,
+                "janela_dias": dias
+            }
+
+        apolices = []
+        for r in rows:
+            ap = dict(r)
+            for campo in ["vigencia_inicio", "vigencia_fim"]:
+                if ap.get(campo):
+                    ap[campo] = ap[campo].strftime("%d/%m/%Y")
+            if ap.get("premio"):
+                ap["premio_fmt"] = f"R$ {float(ap['premio']):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            if ap.get("dias_para_vencer") is not None:
+                ap["dias_para_vencer"] = int(ap["dias_para_vencer"].days if hasattr(ap["dias_para_vencer"], "days") else ap["dias_para_vencer"])
+            apolices.append(ap)
+
+        return {
+            "encontrado": True,
+            "apolices": apolices,
+            "total": len(apolices),
+            "janela_dias": dias
+        }
+    except Exception as e:
+        logger.error(f"Erro ao consultar renovações: {e}", exc_info=True)
+        return {"encontrado": False, "erro": str(e)}
+
+
+async def iniciar_renovacao(apolice_id: int, cliente_id: int) -> dict:
+    """
+    Marca a apólice para renovação e prepara os dados para nova cotação.
+    Busca dados existentes da apólice e do veículo para pré-preencher a cotação.
+    """
+    try:
+        import psycopg2
+        import psycopg2.extras
+        conn = psycopg2.connect("postgresql://sierra:SierraDB2026!!@localhost/sierra_db")
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Verifica se apólice pertence ao cliente
+        cur.execute("""
+            SELECT
+                a.id, a.seguradora, a.numero_apolice, a.vigencia_fim,
+                a.premio, a.ramo, a.renovacao_status,
+                v.id AS veiculo_id, v.marca_modelo, v.placa, v.ano_fabricacao,
+                v.chassi, v.cep_pernoite,
+                c.nome AS cliente_nome, c.cpf_cnpj, c.telefone
+            FROM apolices a
+            LEFT JOIN veiculos v ON a.veiculo_id = v.id
+            LEFT JOIN clientes c ON a.cliente_id = c.id
+            WHERE a.id = %s AND a.cliente_id = %s
+        """, (apolice_id, cliente_id))
+        row = cur.fetchone()
+
+        if not row:
+            cur.close()
+            conn.close()
+            return {
+                "sucesso": False,
+                "msg": f"Apólice {apolice_id} não encontrada para este cliente."
+            }
+
+        dados = dict(row)
+
+        # Marca para renovação no DB
+        cur.execute("""
+            UPDATE apolices
+            SET renovacao_status = 'em_andamento',
+                renovacao_updated_at = NOW()
+            WHERE id = %s
+        """, (apolice_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        # Formata vigência
+        vigencia_fim = dados.get("vigencia_fim")
+        if vigencia_fim:
+            dados["vigencia_fim"] = vigencia_fim.strftime("%d/%m/%Y")
+
+        # Monta dados pré-preenchidos para cotação
+        dados_cotacao = {
+            "placa": dados.get("placa", ""),
+            "marca_modelo": dados.get("marca_modelo", ""),
+            "ano_fabricacao": dados.get("ano_fabricacao"),
+            "chassi": dados.get("chassi", ""),
+            "cep_pernoite": dados.get("cep_pernoite", ""),
+            "cliente_nome": dados.get("cliente_nome", ""),
+            "cpf_cnpj": dados.get("cpf_cnpj", ""),
+            "telefone": dados.get("telefone", ""),
+            "seguradora_atual": dados.get("seguradora", ""),
+        }
+
+        logger.info(
+            f"[Sofia] Renovação iniciada: apólice {apolice_id} → cliente {cliente_id}"
+        )
+
+        return {
+            "sucesso": True,
+            "msg": f"Renovação da apólice {dados.get('numero_apolice', apolice_id)} iniciada com sucesso.",
+            "apolice": dados,
+            "dados_cotacao": dados_cotacao,
+            "proximo_passo": "Confirme os dados do veículo e do cliente para calcular a nova cotação."
+        }
+    except Exception as e:
+        logger.error(f"Erro ao iniciar renovação: {e}", exc_info=True)
+        return {"sucesso": False, "erro": str(e)}
+
+
 async def notificar_corretor(resumo: str, tipo: str = "info", urgente: bool = False,
-                              bot=None, cliente_nome: str = None) -> dict:
+                              bot=None, cliente_nome: str = None,
+                              historico_resumo: str = None,
+                              chat_id: int = None) -> dict:
     """
     Envia notificação pro Eduardo via Telegram.
-    Precisa do objeto bot do python-telegram-bot.
+    Para handoffs, inclui o histórico resumido da conversa.
     """
     if not bot:
         logger.warning("notificar_corretor chamado sem bot object")
@@ -485,23 +651,34 @@ async def notificar_corretor(resumo: str, tipo: str = "info", urgente: bool = Fa
     urgente_tag = "🔴 *URGENTE*\n" if urgente else ""
 
     if tipo == "handoff":
-        titulo = "Handoff solicitado"
-        instrucao = "\n\n_O cliente está aguardando seu contato!_"
+        titulo = "Handoff — cliente aguarda atendimento humano"
+        instrucao = "\n\n_O cliente está aguardando seu contato! Já tem todo o contexto abaixo._"
     elif tipo == "cotacao_completa":
         titulo = "Cotação finalizada"
         instrucao = "\n\n_Verifique os resultados e entre em contato._"
     elif tipo == "sinistro":
-        titulo = "Acionamento de sinistro"
-        instrucao = "\n\n_Contato prioritário com o cliente._"
+        titulo = "🚨 Acionamento de sinistro"
+        instrucao = "\n\n_Contato PRIORITÁRIO com o cliente._"
     else:
         titulo = "Notificação do agente"
         instrucao = ""
 
     cliente_tag = f"\n👤 *Cliente:* {cliente_nome}" if cliente_nome else ""
+    chat_tag = f"\n💬 *Chat ID:* `{chat_id}`" if chat_id else ""
+
+    # Corpo principal
     msg = (
-        f"{urgente_tag}{emoji} *Sofia — {titulo}*{cliente_tag}\n\n"
-        f"{resumo}{instrucao}"
+        f"{urgente_tag}{emoji} *Sofia — {titulo}*"
+        f"{cliente_tag}{chat_tag}\n\n"
+        f"*Resumo do atendimento:*\n{resumo}"
+        f"{instrucao}"
     )
+
+    # Histórico da conversa (apenas em handoffs)
+    if tipo in ("handoff", "sinistro") and historico_resumo:
+        # Trunca se muito longo (limite Telegram ~4096 chars)
+        hist_trunc = historico_resumo[:1500] if len(historico_resumo) > 1500 else historico_resumo
+        msg += f"\n\n*📋 Histórico da conversa:*\n```\n{hist_trunc}\n```"
 
     try:
         await bot.send_message(
@@ -509,10 +686,19 @@ async def notificar_corretor(resumo: str, tipo: str = "info", urgente: bool = Fa
             text=msg,
             parse_mode="Markdown"
         )
+        logger.info(f"[Sofia] Corretor notificado: tipo={tipo}, urgente={urgente}")
         return {"sucesso": True, "msg": "Corretor notificado com sucesso."}
     except Exception as e:
         logger.error(f"Erro ao notificar corretor: {e}")
-        return {"sucesso": False, "msg": f"Erro ao notificar: {str(e)}"}
+        # Tenta sem Markdown como fallback
+        try:
+            await bot.send_message(
+                chat_id=CORRETOR_CHAT_ID,
+                text=msg.replace("*", "").replace("_", "").replace("`", "")
+            )
+            return {"sucesso": True, "msg": "Corretor notificado (sem formatação)."}
+        except Exception as e2:
+            return {"sucesso": False, "msg": f"Erro ao notificar: {str(e2)}"}
 
 
 # ─────────────────────────────────────────────────────────────
@@ -524,13 +710,11 @@ async def executar_ferramenta(nome: str, parametros: dict,
                                cliente_nome: str = None) -> dict:
     """
     Despacha a chamada de ferramenta pelo nome.
-    Chamado pelo agent_engine quando o Claude retorna um tool_use.
     """
     logger.info(f"[tool] Executando: {nome} | params={list(parametros.keys())}")
 
     if nome == "classificar_intencao":
-        # Esta ferramenta é "virtual" — o resultado é retornado pelo próprio Claude
-        # Apenas repassa os parâmetros como resultado
+        # Ferramenta "virtual" — repassa os parâmetros como resultado
         return parametros
 
     elif nome == "processar_cnh":
@@ -563,13 +747,80 @@ async def executar_ferramenta(nome: str, parametros: dict,
     elif nome == "consultar_apolices":
         return await consultar_apolices(parametros["cliente_id"])
 
+    elif nome == "consultar_renovacoes_pendentes":
+        return await consultar_renovacoes_pendentes(
+            cliente_id=parametros["cliente_id"],
+            dias=parametros.get("dias", 60)
+        )
+
+    elif nome == "iniciar_renovacao":
+        return await iniciar_renovacao(
+            apolice_id=parametros["apolice_id"],
+            cliente_id=parametros["cliente_id"]
+        )
+
     elif nome == "notificar_corretor":
         return await notificar_corretor(
             resumo=parametros["resumo"],
             tipo=parametros.get("tipo", "info"),
             urgente=parametros.get("urgente", False),
             bot=bot,
+            cliente_nome=parametros.get("cliente_nome") or cliente_nome,
+            historico_resumo=parametros.get("historico_resumo"),
+            chat_id=parametros.get("chat_id")
+        )
+
+    # ── 2.5.6 ──────────────────────────────────────────────
+    elif nome == "processar_endosso":
+        return await processar_endosso(
+            numero_apolice=parametros["numero_apolice"],
+            tipo_endosso=parametros["tipo_endosso"],
+            dados_novos=parametros["dados_novos"],
+            bot=bot,
             cliente_nome=cliente_nome
+        )
+
+    # ── 2.5.7 ──────────────────────────────────────────────
+    elif nome == "abrir_sinistro":
+        return await abrir_sinistro(
+            numero_apolice=parametros["numero_apolice"],
+            tipo_sinistro=parametros["tipo_sinistro"],
+            descricao=parametros["descricao"],
+            data_ocorrencia=parametros["data_ocorrencia"],
+            bot=bot,
+            cliente_nome=cliente_nome
+        )
+
+    # ── 2.5.8 ──────────────────────────────────────────────
+    elif nome == "buscar_documento":
+        return await buscar_documento(
+            tipo=parametros["tipo"],
+            numero_apolice=parametros.get("numero_apolice"),
+            cliente_nome=parametros.get("cliente_nome") or cliente_nome
+        )
+
+    # ── 2.5.9 ──────────────────────────────────────────────
+    elif nome == "consultar_assistencia":
+        return await consultar_assistencia(
+            seguradora=parametros["seguradora"]
+        )
+
+    # ── 2.5.10 ─────────────────────────────────────────────
+    elif nome == "consultar_status_sinistro":
+        return await consultar_status_sinistro(
+            numero_apolice=parametros.get("numero_apolice"),
+            nome_cliente=parametros.get("nome_cliente") or cliente_nome,
+            bot=bot
+        )
+
+    # ── 2.5.11 ─────────────────────────────────────────────
+    elif nome == "registrar_indicacao":
+        return await registrar_indicacao(
+            nome_indicado=parametros["nome_indicado"],
+            telefone_indicado=parametros["telefone_indicado"],
+            cliente_indicador=parametros["cliente_indicador"],
+            ramo_interesse=parametros.get("ramo_interesse"),
+            bot=bot
         )
 
     else:
