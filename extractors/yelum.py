@@ -428,19 +428,27 @@ class YelumExtractor(BaseExtractor):
                             break
 
                   # Extract Values
+                  # Yelum table columns: CARNÊ | DÉBITO C/C | CARTÃO CRÉDITO | PIX
+                  # Index:                  0         1              2           3
                   val_credit = None
                   val_debit = None
 
                   for line in lines:
-                       # Credit value
+                       # Credit value — column 3 (CARTÃO DE CRÉDITO), index 2
                        if val_credit is None and (f"1 + {target_credit}" in line or f"1+{target_credit}" in line):
                             moneys = re.findall(r'(\d{1,3}(?:\.\d{3})*,\d{2})', line)
-                            if moneys: val_credit = moneys[-1]
+                            if len(moneys) >= 3:
+                                 val_credit = moneys[2]  # Cartão de Crédito column
+                            elif moneys:
+                                 val_credit = moneys[-1]  # Fallback
 
-                       # Debit value (only if found potential debit target)
+                       # Debit value — column 2 (DÉBITO C/C), index 1
                        if max_debit_n > 0 and val_debit is None and (f"1 + {target_debit}" in line or f"1+{target_debit}" in line):
                             moneys = re.findall(r'(\d{1,3}(?:\.\d{3})*,\d{2})', line)
-                            if moneys: val_debit = moneys[-1]
+                            if len(moneys) >= 2:
+                                 val_debit = moneys[1]  # Débito C/C column
+                            elif moneys:
+                                 val_debit = moneys[-1]  # Fallback
 
                   if val_credit and max_credit_n > 1:
                        pag_opcoes.append({"tipo": "Cartão de Crédito", "parcelas": f"{max_credit_n}x", "valor": f"R$ {val_credit}"})
