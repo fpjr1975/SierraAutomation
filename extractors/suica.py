@@ -210,6 +210,8 @@ class SuicaExtractor(BaseExtractor):
                             coberturas.append(("Assistência 24h", "Ilimitado somente para colisão*"))
                   if "Coberturas para vidros" in l:
                        coberturas.append(("Vidros", "Completo"))
+                  if "Franquia de 40%" in l or "40%" in l and "vidro" in l.lower():
+                       franquias_lista.append("Vidros: 40% por item")
                   if "Carro Reserva" in l:
                        match_cr = re.search(r'(\d+\s+dias)', l)
                        if match_cr: coberturas.append(("Carro Reserva", match_cr.group(1)))
