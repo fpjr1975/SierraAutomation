@@ -201,9 +201,13 @@ class SuicaExtractor(BaseExtractor):
 
              elif mode == "servicos":
                   if "Assistência 24 horas" in l: continue
-                  if "Pacote Premium" in l:
-                       # User Request: "Ilimitado somente para colisão*"
-                       coberturas.append(("Assistência 24h", "Ilimitado somente para colisão*"))
+                  if "Pacote Premium" in l or re.search(r'Pacote\s+\d+\s*km', l):
+                       # "Pacote Premium" ou "Pacote 500 km" — guincho incluso
+                       match_km = re.search(r'(\d+)\s*km', l, re.IGNORECASE)
+                       if match_km:
+                            coberturas.append(("Assistência 24h", f"Guincho {match_km.group(1)}km*"))
+                       else:
+                            coberturas.append(("Assistência 24h", "Ilimitado somente para colisão*"))
                   if "Coberturas para vidros" in l:
                        coberturas.append(("Vidros", "Completo"))
                   if "Carro Reserva" in l:
