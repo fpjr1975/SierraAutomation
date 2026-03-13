@@ -231,28 +231,53 @@ class SuicaExtractor(BaseExtractor):
 
         # --- Pagamento ---
         pag_opcoes = []
-        max_inst = 0
-        best_val = None
+        boleto_inst = 0
+        boleto_val = None
+        cartao_inst = 0
+        cartao_val = None
         val_vista = None
 
+        current_section = None
         for line in lines:
+             l_up = line.upper()
+             if "BOLETO" in l_up and "PIX" in l_up and "CARTÃO" not in l_up and "CARTAO" not in l_up:
+                  current_section = "boleto"
+             elif "CARTÃO" in l_up or "CARTAO" in l_up:
+                  current_section = "cartao"
+
              if "Sem juros" in line:
                   matches = re.findall(r'(\d{1,2})\s+([\d\.,]+)\s+Sem juros', line)
                   for m in matches:
                        p = int(m[0])
                        v = m[1]
-                       if p > max_inst:
-                            max_inst = p
-                            best_val = v
                        if p == 1 and val_vista is None:
                             val_vista = v
+                       if current_section == "boleto":
+                            if p > boleto_inst:
+                                 boleto_inst = p
+                                 boleto_val = v
+                       elif current_section == "cartao":
+                            if p > cartao_inst:
+                                 cartao_inst = p
+                                 cartao_val = v
+                       else:
+                            # fallback sem seção detectada
+                            if p > cartao_inst:
+                                 cartao_inst = p
+                                 cartao_val = v
 
         if val_vista:
              self.data["premio_total"] = f"R$ {val_vista}"
              pag_opcoes.append({"tipo": "À Vista", "parcelas": "1x", "valor": f"R$ {val_vista}"})
 
-        if max_inst > 1 and best_val:
-             pag_opcoes.append({"tipo": "Cartão de Crédito", "parcelas": f"{max_inst}x", "valor": f"R$ {best_val}"})
+        if boleto_inst > 1 and boleto_val:
+             pag_opcoes.append({"tipo": "Boleto/PIX", "parcelas": f"{boleto_inst}x", "valor": f"R$ {boleto_val}"})
+        elif cartao_inst > 1 and cartao_val and boleto_inst == 0:
+             # Se não detectou boleto separado, cria boleto igual ao cartão (Suíça usa mesmas parcelas)
+             pag_opcoes.append({"tipo": "Boleto/PIX", "parcelas": f"{cartao_inst}x", "valor": f"R$ {cartao_val}"})
+
+        if cartao_inst > 1 and cartao_val:
+             pag_opcoes.append({"tipo": "Cartão de Crédito", "parcelas": f"{cartao_inst}x", "valor": f"R$ {cartao_val}"})
 
         self.data["pagamento_opcoes"] = pag_opcoes
         self.data["placa"] = self._extract_placa_generic(text)
