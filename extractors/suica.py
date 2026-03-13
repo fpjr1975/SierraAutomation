@@ -116,6 +116,9 @@ class SuicaExtractor(BaseExtractor):
 
              if collected_parts:
                   line2 = " ".join(collected_parts)
+                  # Remove palavras de cabeçalho que vazam do PDF
+                  line2 = re.sub(r'\bCombustível\b', '', line2, flags=re.IGNORECASE).strip()
+                  line2 = re.sub(r'\s+', ' ', line2).strip()
 
 
 
@@ -183,15 +186,15 @@ class SuicaExtractor(BaseExtractor):
              if mode == "coberturas":
                   if "100% da tabela FIPE" in l:
                        coberturas.append(("Compreensiva", "100% FIPE"))
-                  if "Danos morais" in l:
-                       val = re.findall(r'(\d{1,3}(?:\.\d{3})*,\d{2})', l)
-                       if val: coberturas.append(("Danos Morais", f"R$ {val[0]}"))
                   if "Danos Pessoais" in l:
                        val = re.findall(r'(\d{1,3}(?:\.\d{3})*,\d{2})', l)
                        if val: coberturas.append(("Danos Corporais", f"R$ {val[0]}"))
                   if "Danos Materiais" in l:
                        val = re.findall(r'(\d{1,3}(?:\.\d{3})*,\d{2})', l)
                        if val: coberturas.append(("Danos Materiais", f"R$ {val[0]}"))
+                  if "Danos morais" in l:
+                       val = re.findall(r'(\d{1,3}(?:\.\d{3})*,\d{2})', l)
+                       if val: coberturas.append(("Danos Morais", f"R$ {val[0]}"))
                   if "APP" in l and "Morte" in l:
                        val = re.findall(r'(\d{1,3}(?:\.\d{3})*,\d{2})', l)
                        if val: coberturas.append(("APP Morte", f"R$ {val[0]}"))
@@ -208,8 +211,8 @@ class SuicaExtractor(BaseExtractor):
                             coberturas.append(("Assistência 24h", f"Guincho {match_km.group(1)}km*"))
                        else:
                             coberturas.append(("Assistência 24h", "Ilimitado somente para colisão*"))
-                  if "Coberturas para vidros" in l:
-                       coberturas.append(("Vidros", "Completo"))
+                  if "Coberturas para vidros" in l or "faróis" in l.lower() or "lanternas" in l.lower():
+                       coberturas.append(("Vidros/Faróis", "Completo"))
                   if "Franquia de 40%" in l or "40%" in l and "vidro" in l.lower():
                        franquias_lista.append("Vidros: 40% por item")
                   if "Carro Reserva" in l:
