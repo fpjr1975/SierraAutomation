@@ -622,12 +622,27 @@ async def handle_other(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ────────────────────────────────────────────────────────────
 
 async def renova(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Renovação de seguro — em desenvolvimento."""
+    """Renovação de seguro — pipeline em construção, aviso de bônus."""
     first_name = update.message.from_user.first_name or "amigo"
     await update.message.reply_text(
-        f"🔄 Oi, {first_name}! A função de *renovação de seguros* "
-        f"está sendo desenvolvida e em breve estará disponível.\n\n"
-        f"⏳ _Estamos trabalhando nisso!_",
+        f"🔄 *Renovação de Seguros* — Em breve!\n\n"
+        f"Oi, {first_name}! O módulo completo de renovações está sendo construído no Vértice.\n\n"
+        f"📋 *O que está planejado:*\n"
+        f"• Alertas automáticos 30/60/90 dias antes do vencimento\n"
+        f"• Recotação automática via Agilizador\n"
+        f"• Comparativo: prêmio atual vs novas propostas\n"
+        f"• Fluxo: alerta → cotação → proposta → fechamento\n\n"
+        f"⚠️ *ATENÇÃO — Classe de Bônus:*\n"
+        f"Ao renovar manualmente pelo Corp, sempre verifique a classe de bônus do cliente. "
+        f"O Corp não registra sinistros automaticamente, o que pode resultar em "
+        f"classe de bônus *incorreta* na renovação.\n\n"
+        f"✅ *Como verificar:*\n"
+        f"1. Consulte a apólice vigente no Corp (Arquivos › Apólices)\n"
+        f"2. Verifique se houve sinistros no período (Corp não registra automaticamente — consultar seguradora)\n"
+        f"3. Sem sinistros: bônus sobe 1 classe (máx 10)\n"
+        f"4. Com 1 sinistro: bônus cai 3 classes (mín 1)\n"
+        f"5. Com 2+ sinistros: volta para classe 1\n\n"
+        f"_O Vértice vai corrigir este gap registrando sinistros e calculando a classe corretamente!_",
         parse_mode="Markdown"
     )
 
@@ -684,6 +699,16 @@ async def nova(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Inicia sessão de nova cotação — mostra botões de ramo."""
     chat_id = update.message.chat_id
     primeiro_nome = update.message.from_user.first_name or "pessoal"
+
+    # Limpa qualquer sessão ativa (/nova ou /agente) antes de começar
+    nova_sessions.pop(chat_id, None)
+    _save_nova_sessions()
+    try:
+        from agent.bot_integration import _agente_ativo, remover_agente
+        _agente_ativo.discard(chat_id)  # remove do set (seguro mesmo se ausente)
+        remover_agente(chat_id)         # sempre limpa no DB, independente do set
+    except Exception:
+        pass
 
     await update.message.reply_text(
         f"😊 Oi, {primeiro_nome}! Que tipo de seguro vamos cotar?",
@@ -906,10 +931,22 @@ async def _processar_doc_nova(file_path: str, chat_id: int, msg, context) -> boo
                     await _mostrar_resumo(msg, chat_id)
                 return True
             
-            # Se já tem uma CNH, é a segunda — perguntar quem é quem
+            # Se já tem uma CNH, é a segunda — verificar CPF antes de criar condutor
             if session.get("cnh") and session["cnh"].get("nome"):
+                cpf_anterior = session["cnh"].get("cpf", "")
+                cpf_novo = data.get("cpf", "")
+                
+                # Mesmo CPF → CNH duplicada da mesma pessoa, ignora silenciosamente
+                if cpf_anterior and cpf_novo and cpf_anterior == cpf_novo:
+                    await status.edit_text(
+                        f"ℹ️ Já recebi a CNH de *{nome}*!\n\n"
+                        f"{_nova_status(session)}",
+                        parse_mode="Markdown"
+                    )
+                    return True
+                
                 nome_anterior = session["cnh"].get("nome", "?")
-                # Salva a segunda CNH temporariamente
+                # Salva a segunda CNH temporariamente (CPFs diferentes = dois condutores)
                 session["cnh_2"] = data
                 _save_nova_sessions()
                 
@@ -1227,7 +1264,37 @@ async def handle_gestor_message(update: Update, context: ContextTypes.DEFAULT_TY
     
     if not text.strip():
         return
-    
+
+    # ── Detecta pedido de PDF de inativos ────────────────────────────────────
+    _text_lower = text.lower()
+    _pdf_keywords = ["pdf de inativo", "lista de inativo", "relatório de inativo",
+                     "relatorio de inativo", "pdf inativos", "lista inativos",
+                     "relatório inativos", "relatorio inativos"]
+    if any(kw in _text_lower for kw in _pdf_keywords):
+        await update.message.chat.send_action("upload_document")
+        try:
+            db_user = await database.get_usuario_by_telegram(user_id)
+            if not db_user:
+                await update.message.reply_text("⚠️ Usuário não encontrado no sistema.")
+                return
+            corretora_id = db_user["corretora_id"]
+            import sys as _sys
+            _sys.path.insert(0, "/root/sierra/gaston")
+            from pdf_generator import gerar_pdf_inativos
+            pdf_path = await gerar_pdf_inativos(corretora_id)
+            with open(pdf_path, "rb") as f:
+                await update.message.reply_document(
+                    document=f,
+                    filename="inativos_sierra.pdf",
+                    caption="📄 *Relatório de Clientes Inativos — Sierra Seguros*\n_Gerado agora pelo Gastón_",
+                    parse_mode="Markdown"
+                )
+        except Exception as e:
+            logger.error(f"Erro ao gerar PDF de inativos: {e}", exc_info=True)
+            await update.message.reply_text("⚠️ Erro ao gerar o PDF. Tente novamente.")
+        return
+    # ─────────────────────────────────────────────────────────────────────────
+
     # Mostra "digitando..."
     await update.message.chat.send_action("typing")
     
@@ -1363,7 +1430,7 @@ async def handle_escolher_seguradora(update: Update, context: ContextTypes.DEFAU
     
     if resultado.get("sucesso") and resultado.get("pdf_path"):
         pdf_path = resultado["pdf_path"]
-        out_name = resultado.get("out_name", f"Sierra_{seguradora}.pdf")
+        out_name = resultado.get("out_name") or f"Orcamento.{seguradora.replace(' ','_')}.{__import__('datetime').datetime.now().strftime('%d.%m.%y_%H.%M.%S')}.pdf"
         
         # Salva PDF permanente + registra no banco
         try:

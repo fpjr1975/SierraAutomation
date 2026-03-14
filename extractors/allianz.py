@@ -27,6 +27,7 @@ class AllianzExtractor(BaseExtractor):
         self.data["veiculo"] = self._find_value_after_keyword(text, "Veículo:", "Versão") or "N/D"
         self.data["cep_pernoite"] = self._find_value_after_keyword(text, "CEP Pernoite:", "Ano") or "N/D"
         self.data["uso"] = self._find_value_after_keyword(text, "Finalidade de Uso:", ["Categoria", "\n"]) or "N/D"
+        self.data["classe_bonus"] = self._extract_classe_bonus(text)
 
         # --- Coberturas (Multicolumn) ---
         block_cols = []

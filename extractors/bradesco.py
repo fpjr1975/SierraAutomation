@@ -29,6 +29,7 @@ class BradescoExtractor(BaseExtractor):
 
         self.data["cep_pernoite"] = self._find_value_after_keyword(text, "CEP de Pernoite:", ["\n", "Bônus"]) or "N/D"
         self.data["uso"] = self._find_value_after_keyword(text, "Uso Veículo:", ["\n", "Chassi"]) or "N/D"
+        self.data["classe_bonus"] = self._extract_classe_bonus(text)
 
         # --- Coberturas & Franquias ---
         coberturas = []

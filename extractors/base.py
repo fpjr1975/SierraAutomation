@@ -18,7 +18,8 @@ class BaseExtractor:
             "cep_pernoite": "N/D",
             "pagamento_opcoes": [],
             "placa": "Placa não informada",
-            "insurer": None  # ALFA, AZUL, etc.
+            "insurer": None,  # ALFA, AZUL, etc.
+            "classe_bonus": "N/D",  # Classe de bônus (1-10) da apólice
         }
         self.full_text = ""
         self.full_text_upper = ""
@@ -225,6 +226,31 @@ class BaseExtractor:
         if match:
             return f"R$ {match.group(1)}"
         return None
+
+    def _extract_classe_bonus(self, text):
+        """
+        Extrai classe de bônus do texto do PDF.
+        Bônus vai de 1 (sem desconto) a 10 (máximo desconto).
+        Presente em apólices (não cotações).
+        """
+        # Padrões comuns nos PDFs de seguradoras
+        patterns = [
+            # "Classe de Bônus: 8" ou "Classe de Bônus 08"
+            r'[Cc]lasse\s+de\s+[Bb][ôo]nus\s*[:\-]?\s*0?(\d{1,2})',
+            # "Bônus: 8" ou "Bônus 08"
+            r'[Bb][ôo]nus\s*[:\-]\s*0?(\d{1,2})',
+            # "Classe: 8" (contexto de bônus)
+            r'[Cc]lasse\s*[:\-]\s*0?(\d{1,2})',
+            # "Perfil / Bônus ... 8"
+            r'[Bb][ôo]nus[^\n]{0,30}?(\d{1,2})\b',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, text)
+            if match:
+                val = int(match.group(1))
+                if 1 <= val <= 10:
+                    return str(val)
+        return "N/D"
 
     def _extract_placa_generic(self, text):
         """Generic regex for Brazilian license plates (Mercosul or Old)."""
